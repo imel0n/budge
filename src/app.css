@@ -2,6 +2,9 @@
 
 :root {
   color-scheme: dark;
+  /* Shared horizontal gutter for the header content and page bodies, so they
+     line up on a common vertical edge. */
+  --app-gutter: 1rem;
 }
 
 html,
