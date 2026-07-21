@@ -1,10 +1,24 @@
 <!DOCTYPE html>
-<html lang="">
+<html lang="en">
   <head>
     <meta charset="UTF-8">
     <link rel="icon" href="/favicon.ico">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vite App</title>
+
+    <!-- viewport-fit=cover is required for safe-area-inset-* to work on notched iPhones -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+    <!-- PWA / theming -->
+    <meta name="theme-color" content="#111111">
+    <meta name="description" content="Personal budgeting, made simple.">
+
+    <!-- iOS: Safari ignores much of the manifest, so these are still needed -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Budge">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <title>Budge</title>
   </head>
   <body>
     <div id="app"></div>
