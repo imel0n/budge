@@ -14,3 +14,22 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
     'Helvetica Neue', Arial, sans-serif;
 }
+
+/* Disable the WebKit tap-flash, long-press callout, and text selection globally.
+   touch-action isn't inherited — the browser uses the touch-action of the tapped
+   element — so it must be set on every element to fully kill double-tap zoom. */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* Re-enable selection where it makes sense (inputs/editable text) */
+input,
+textarea,
+[contenteditable='true'] {
+  -webkit-user-select: text;
+  user-select: text;
+}
