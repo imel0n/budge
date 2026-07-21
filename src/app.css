@@ -4,7 +4,7 @@
   color-scheme: dark;
   /* Shared horizontal gutter for the header content and page bodies, so they
      line up on a common vertical edge. */
-  --app-gutter: 0.65rem;
+  --app-gutter: 0.75rem;
   /* Height of the fixed HeaderBar: safe-area inset + top padding + button row.
      Page bodies offset themselves by this so content clears the header. */
   --header-height: calc(env(safe-area-inset-top) + 0.125rem + 2.5rem);
@@ -17,8 +17,9 @@ body {
   min-height: 100%;
   background-color: #000000;
   color: #ffffff;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
-    'Helvetica Neue', Arial, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', Arial,
+    sans-serif;
 }
 
 /* Disable the WebKit tap-flash, long-press callout, and text selection globally.
