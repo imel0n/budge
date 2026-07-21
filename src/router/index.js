@@ -5,17 +5,23 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/transactions',
-    },
-    {
-      path: '/transactions',
-      name: 'transactions',
-      component: () => import('../pages/TheTransactions.vue'),
-    },
-    {
-      path: '/accounts',
-      name: 'accounts',
-      component: () => import('../pages/TheAccounts.vue'),
+      component: () => import('../layouts/DefaultLayout.vue'),
+      children: [
+        {
+          path: '',
+          redirect: '/transactions',
+        },
+        {
+          path: 'transactions',
+          name: 'transactions',
+          component: () => import('../pages/TheTransactions.vue'),
+        },
+        {
+          path: 'accounts',
+          name: 'accounts',
+          component: () => import('../pages/TheAccounts.vue'),
+        },
+      ],
     },
   ],
 })
