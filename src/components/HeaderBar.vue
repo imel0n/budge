@@ -1,7 +1,7 @@
 <script setup>
 // A button descriptor looks like: { id: 'save', label: 'Save' }
 // `id` is sent back to the parent on click so it knows which button fired.
-const props = defineProps({
+defineProps({
   title: {
     type: String,
     default: '',
@@ -40,7 +40,7 @@ function onButtonClick(side, button) {
       </button>
     </div>
 
-    <h1 class="title">{{ title }}</h1>
+    <h3 class="title">{{ title }}</h3>
 
     <div class="right-area">
       <button
@@ -55,4 +55,25 @@ function onButtonClick(side, button) {
   </header>
 </template>
 
-<style scoped></style>
+<style scoped>
+header {
+  position: relative;
+  /* Keep header content clear of the status bar / dynamic island. */
+  padding-top: calc(env(safe-area-inset-top) + 1.5rem);
+}
+
+.title {
+  position: absolute;
+  left: 50%;
+  /* Offset by half the safe-area inset so the title stays centered with the
+     buttons, which sit below the inset in normal flow. */
+  top: calc(50% + (env(safe-area-inset-top) + 1.5rem) / 2);
+  transform: translate(-50%, -50%);
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  color: #ffffff;
+}
+</style>

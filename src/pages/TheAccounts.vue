@@ -1,9 +1,12 @@
-<script setup></script>
+<script setup>
+import { inject } from 'vue'
+
+const setPageTitle = inject('setPageTitle')
+setPageTitle('Accounts')
+</script>
 
 <template>
-  <main>
-    <h1>Accounts</h1>
-  </main>
+  <main></main>
 </template>
 
 <style scoped></style>
