@@ -1,4 +1,7 @@
 <script setup>
+import HeaderButton from './HeaderButton.vue'
+import HeaderButtonGroup from './HeaderButtonGroup.vue'
+
 // A button descriptor looks like: { id: 'save', label: 'Save' }
 // `id` is sent back to the parent on click so it knows which button fired.
 defineProps({
@@ -28,35 +31,39 @@ defineProps({
 // Fires when any button is clicked, telling the parent which side and which id.
 const emit = defineEmits(['button-click'])
 
-function onButtonClick(side, button) {
-  emit('button-click', { side, id: button.id })
+function onButtonClick(side, id) {
+  emit('button-click', { side, id })
 }
 </script>
 
 <template>
   <header>
-    <div class="left-area" :class="{ grouped: leftButtons.length === 2 }">
-      <button
-        v-for="button in leftButtons"
-        :key="button.id"
-        type="button"
-        @click="onButtonClick('left', button)"
-      >
-        {{ button.label }}
-      </button>
+    <div class="left-area">
+      <HeaderButtonGroup
+        v-if="leftButtons.length === 2"
+        :buttons="leftButtons"
+        @button-click="onButtonClick('left', $event)"
+      />
+      <HeaderButton
+        v-else-if="leftButtons.length === 1"
+        :label="leftButtons[0].label"
+        @click="onButtonClick('left', leftButtons[0].id)"
+      />
     </div>
 
     <h3 class="title" :class="{ visible: titleVisible }">{{ title }}</h3>
 
-    <div class="right-area" :class="{ grouped: rightButtons.length === 2 }">
-      <button
-        v-for="button in rightButtons"
-        :key="button.id"
-        type="button"
-        @click="onButtonClick('right', button)"
-      >
-        {{ button.label }}
-      </button>
+    <div class="right-area">
+      <HeaderButtonGroup
+        v-if="rightButtons.length === 2"
+        :buttons="rightButtons"
+        @button-click="onButtonClick('right', $event)"
+      />
+      <HeaderButton
+        v-else-if="rightButtons.length === 1"
+        :label="rightButtons[0].label"
+        @click="onButtonClick('right', rightButtons[0].id)"
+      />
     </div>
   </header>
 </template>
@@ -69,12 +76,60 @@ header {
   left: 0;
   right: 0;
   z-index: 100;
-  background-color: #000000;
+  /* Vertical center of the page title — matches .title's `top`. The gradient
+     is fully opaque from the top down to this line, then fades to nothing. */
+  --title-mid: calc(50% + (env(safe-area-inset-top) + 0.125rem) / 2);
+  /* Solid black down to the title midpoint, then 36 smoothstep-eased steps
+     fading to 0 opacity at the bottom edge for a soft iOS-style falloff. */
+  background: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 var(--title-mid),
+    rgba(0, 0, 0, 0.9978) calc(var(--title-mid) * 0.973 + 100% * 0.027),
+    rgba(0, 0, 0, 0.9916) calc(var(--title-mid) * 0.9459 + 100% * 0.0541),
+    rgba(0, 0, 0, 0.9813) calc(var(--title-mid) * 0.9189 + 100% * 0.0811),
+    rgba(0, 0, 0, 0.9675) calc(var(--title-mid) * 0.8919 + 100% * 0.1081),
+    rgba(0, 0, 0, 0.9502) calc(var(--title-mid) * 0.8649 + 100% * 0.1351),
+    rgba(0, 0, 0, 0.9296) calc(var(--title-mid) * 0.8378 + 100% * 0.1622),
+    rgba(0, 0, 0, 0.9062) calc(var(--title-mid) * 0.8108 + 100% * 0.1892),
+    rgba(0, 0, 0, 0.88) calc(var(--title-mid) * 0.7838 + 100% * 0.2162),
+    rgba(0, 0, 0, 0.8513) calc(var(--title-mid) * 0.7568 + 100% * 0.2432),
+    rgba(0, 0, 0, 0.8203) calc(var(--title-mid) * 0.7297 + 100% * 0.2703),
+    rgba(0, 0, 0, 0.7874) calc(var(--title-mid) * 0.7027 + 100% * 0.2973),
+    rgba(0, 0, 0, 0.7527) calc(var(--title-mid) * 0.6757 + 100% * 0.3243),
+    rgba(0, 0, 0, 0.7164) calc(var(--title-mid) * 0.6486 + 100% * 0.3514),
+    rgba(0, 0, 0, 0.6788) calc(var(--title-mid) * 0.6216 + 100% * 0.3784),
+    rgba(0, 0, 0, 0.6402) calc(var(--title-mid) * 0.5946 + 100% * 0.4054),
+    rgba(0, 0, 0, 0.6007) calc(var(--title-mid) * 0.5676 + 100% * 0.4324),
+    rgba(0, 0, 0, 0.5607) calc(var(--title-mid) * 0.5405 + 100% * 0.4595),
+    rgba(0, 0, 0, 0.5203) calc(var(--title-mid) * 0.5135 + 100% * 0.4865),
+    rgba(0, 0, 0, 0.4797) calc(var(--title-mid) * 0.4865 + 100% * 0.5135),
+    rgba(0, 0, 0, 0.4393) calc(var(--title-mid) * 0.4595 + 100% * 0.5405),
+    rgba(0, 0, 0, 0.3993) calc(var(--title-mid) * 0.4324 + 100% * 0.5676),
+    rgba(0, 0, 0, 0.3598) calc(var(--title-mid) * 0.4054 + 100% * 0.5946),
+    rgba(0, 0, 0, 0.3212) calc(var(--title-mid) * 0.3784 + 100% * 0.6216),
+    rgba(0, 0, 0, 0.2836) calc(var(--title-mid) * 0.3514 + 100% * 0.6486),
+    rgba(0, 0, 0, 0.2473) calc(var(--title-mid) * 0.3243 + 100% * 0.6757),
+    rgba(0, 0, 0, 0.2126) calc(var(--title-mid) * 0.2973 + 100% * 0.7027),
+    rgba(0, 0, 0, 0.1797) calc(var(--title-mid) * 0.2703 + 100% * 0.7297),
+    rgba(0, 0, 0, 0.1487) calc(var(--title-mid) * 0.2432 + 100% * 0.7568),
+    rgba(0, 0, 0, 0.12) calc(var(--title-mid) * 0.2162 + 100% * 0.7838),
+    rgba(0, 0, 0, 0.0938) calc(var(--title-mid) * 0.1892 + 100% * 0.8108),
+    rgba(0, 0, 0, 0.0704) calc(var(--title-mid) * 0.1622 + 100% * 0.8378),
+    rgba(0, 0, 0, 0.0498) calc(var(--title-mid) * 0.1351 + 100% * 0.8649),
+    rgba(0, 0, 0, 0.0325) calc(var(--title-mid) * 0.1081 + 100% * 0.8919),
+    rgba(0, 0, 0, 0.0187) calc(var(--title-mid) * 0.0811 + 100% * 0.9189),
+    rgba(0, 0, 0, 0.0084) calc(var(--title-mid) * 0.0541 + 100% * 0.9459),
+    rgba(0, 0, 0, 0.0022) calc(var(--title-mid) * 0.027 + 100% * 0.973),
+    rgba(0, 0, 0, 0) 100%
+  );
   display: flex;
   align-items: center;
   justify-content: space-between;
   /* Keep header content clear of the status bar / dynamic island. */
   padding-top: calc(env(safe-area-inset-top) + 0.125rem);
+  /* A small chin below the content so the gradient fade has room to breathe. */
+  padding-bottom: 8px;
   /* Inset content off the edges while the bar itself stays full-bleed. In
      landscape, honour the notch inset if it's larger than the gutter. */
   padding-left: max(var(--app-gutter), env(safe-area-inset-left));
@@ -84,52 +139,6 @@ header {
 .left-area,
 .right-area {
   display: flex;
-  gap: 0.5rem;
-}
-
-/* Two buttons on a side merge into a single segmented pill. */
-.left-area.grouped,
-.right-area.grouped {
-  gap: 0;
-  border-radius: 999px;
-  background-color: #1c1c1e;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow:
-    0 0 0 4px rgba(255, 255, 255, 0.02),
-    0 1px 2px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
-/* Inside a group, buttons drop their own pill chrome and become segments. */
-.grouped button {
-  min-width: 3rem;
-  background-color: transparent;
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-}
-
-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 2.5rem;
-  min-height: 2.5rem;
-  padding: 0.85rem;
-  border-radius: 999px;
-  /* Dark fill with a subtle lighter ring, sitting on the dark header. */
-  background-color: #1c1c1e;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #ffffff;
-  font-size: 1.0625rem;
-  font-weight: 600;
-  line-height: 1;
-  cursor: pointer;
-  /* Soft outer glow/ring and a touch of inner highlight for depth. */
-  box-shadow:
-    0 0 0 4px rgba(255, 255, 255, 0.02),
-    0 1px 2px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .title {
