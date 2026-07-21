@@ -4,7 +4,10 @@
   color-scheme: dark;
   /* Shared horizontal gutter for the header content and page bodies, so they
      line up on a common vertical edge. */
-  --app-gutter: 1rem;
+  --app-gutter: 0.65rem;
+  /* Height of the fixed HeaderBar: safe-area inset + top padding + button row.
+     Page bodies offset themselves by this so content clears the header. */
+  --header-height: calc(env(safe-area-inset-top) + 0.125rem + 2.5rem);
 }
 
 html,
