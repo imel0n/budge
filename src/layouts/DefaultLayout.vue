@@ -11,6 +11,16 @@ function setPageTitle(title) {
 
 provide('setPageTitle', setPageTitle)
 
+// Whether the HeaderBar's own title is shown. Pages toggle this (via
+// usePageTitle) as their <h1> scrolls behind the fixed header.
+const headerTitleVisible = ref(false)
+
+function setHeaderTitleVisible(visible) {
+  headerTitleVisible.value = visible
+}
+
+provide('setHeaderTitleVisible', setHeaderTitleVisible)
+
 // Pages push their own header buttons the same way they set the title.
 const leftButtons = ref([])
 const rightButtons = ref([])
@@ -29,6 +39,7 @@ provide('setHeaderButtons', setHeaderButtons)
 <template>
   <HeaderBar
     :title="pageTitle"
+    :title-visible="headerTitleVisible"
     :left-buttons="leftButtons"
     :right-buttons="rightButtons"
     @button-click="buttonHandler"

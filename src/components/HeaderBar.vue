@@ -17,6 +17,12 @@ defineProps({
     default: () => [],
     validator: (buttons) => buttons.length <= 2,
   },
+  // The title is hidden until the page's <h1> scrolls behind the header, at
+  // which point it fades in.
+  titleVisible: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 // Fires when any button is clicked, telling the parent which side and which id.
@@ -40,7 +46,7 @@ function onButtonClick(side, button) {
       </button>
     </div>
 
-    <h3 class="title">{{ title }}</h3>
+    <h3 class="title" :class="{ visible: titleVisible }">{{ title }}</h3>
 
     <div class="right-area" :class="{ grouped: rightButtons.length === 2 }">
       <button
@@ -132,12 +138,28 @@ button {
   /* Offset by half the safe-area inset so the title stays centered with the
      buttons, which sit below the inset in normal flow. */
   top: calc(50% + (env(safe-area-inset-top) + 0.125rem) / 2);
-  transform: translate(-50%, -50%);
   margin: 0;
   font-size: 1.0625rem;
   font-weight: 600;
   line-height: 1.2;
   text-align: center;
   color: #ffffff;
+  /* Hidden until the Page Title scrolls behind the header, then it fades in
+     while rising into place from just below. Kept non-interactive while
+     hidden. */
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, calc(-50% + 0.75rem));
+  filter: blur(4px);
+  transition:
+    opacity 0.3s ease-out,
+    transform 0.3s ease-out,
+    filter 0.3s ease-out;
+}
+
+.title.visible {
+  opacity: 1;
+  transform: translate(-50%, -50%);
+  filter: blur(0);
 }
 </style>

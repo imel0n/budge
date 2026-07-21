@@ -1,8 +1,8 @@
 <script setup>
 import { inject } from 'vue'
+import { usePageTitle } from '../composables/usePageTitle'
 
-const setPageTitle = inject('setPageTitle')
-setPageTitle('Transactions')
+const { titleRef, collapsed } = usePageTitle('Transactions')
 
 // Push one left button and two right buttons up to the shared HeaderBar.
 // `label` is rendered as plain text (HeaderBar does not take SVG/markup),
@@ -21,7 +21,19 @@ setHeaderButtons({
 </script>
 
 <template>
-  <main></main>
+  <main>
+    <h1 ref="titleRef" :class="{ collapsed }">Transactions</h1>
+  </main>
 </template>
 
-<style scoped></style>
+<style scoped>
+/* The <h1> keeps its box (so it still scrolls behind the header like a blank
+   div), but its text fades out quickly once collapsed, and back in on return. */
+h1 {
+  transition: opacity 0.1s ease-out;
+}
+
+h1.collapsed {
+  opacity: 0;
+}
+</style>
