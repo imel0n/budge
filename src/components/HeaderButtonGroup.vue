@@ -3,8 +3,10 @@ import { ref } from 'vue'
 
 // Two (or more) buttons merged into a single segmented pill. The container owns
 // all the glass chrome; the buttons inside are chromeless segments so the whole
-// thing reads as one object. Each button descriptor is { id, label }; the
-// clicked `id` is emitted back to the parent.
+// thing reads as one object. Each button descriptor is { id, label, icon? }:
+// when `icon` (raw SVG markup) is present the segment shows it instead of the
+// text, and `label` is used as the segment's accessible name. The clicked `id`
+// is emitted back to the parent.
 defineProps({
   buttons: {
     type: Array,
@@ -84,9 +86,11 @@ function onAnimationEnd(event) {
       v-for="button in buttons"
       :key="button.id"
       type="button"
+      :aria-label="button.icon ? button.label || undefined : undefined"
       @click="emit('button-click', button.id)"
     >
-      {{ button.label }}
+      <span v-if="button.icon" class="icon" aria-hidden="true" v-html="button.icon" />
+      <template v-else>{{ button.label }}</template>
     </button>
   </div>
 </template>
@@ -134,6 +138,19 @@ button {
   /* Keep the labels above the glow layer. */
   position: relative;
   z-index: 1;
+}
+
+/* Inline SVG icons are sized to a consistent glyph box and inherit the segment's
+   colour, so icons can be authored without their own dimensions or fills. */
+.icon {
+  display: inline-flex;
+}
+
+.icon :deep(svg) {
+  width: 1.375rem;
+  height: 1.375rem;
+  display: block;
+  fill: currentColor;
 }
 
 /* The tap glow: a soft radial bloom centred on the finger's touch point. It

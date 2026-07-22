@@ -1,12 +1,20 @@
 <script setup>
 import { ref } from 'vue'
 
-// A single standalone header button: a liquid-glass pill. `label` is rendered
-// as plain text (no SVG/markup). Clicks bubble up via the native `click` event.
+// A single standalone header button: a liquid-glass pill. It shows either an
+// `icon` (raw SVG markup, sized to the button and inheriting its colour) or, if
+// no icon is given, the `label` as plain text. `label` is always used as the
+// accessible name, so pass it even for icon-only buttons. Clicks bubble up via
+// the native `click` event.
 defineProps({
   label: {
     type: String,
-    required: true,
+    default: '',
+  },
+  // Raw inline SVG markup. When present it replaces the text label.
+  icon: {
+    type: String,
+    default: '',
   },
 })
 
@@ -67,6 +75,7 @@ function onAnimationEnd(event) {
   <button
     type="button"
     :class="phase"
+    :aria-label="icon ? label || undefined : undefined"
     :style="{ '--glow-x': glowX, '--glow-y': glowY }"
     @pointerdown="onPointerDown"
     @pointerup="onRelease"
@@ -75,7 +84,8 @@ function onAnimationEnd(event) {
     @animationend="onAnimationEnd"
   >
     <span v-if="glowKey" :key="glowKey" class="glow" aria-hidden="true" />
-    <span class="label">{{ label }}</span>
+    <span v-if="icon" class="icon" aria-hidden="true" v-html="icon" />
+    <span v-else class="label">{{ label }}</span>
   </button>
 </template>
 
@@ -115,6 +125,22 @@ button {
 .label {
   position: relative;
   z-index: 1;
+}
+
+/* The icon sits in the same stacking context as the label. The inline SVG is
+   sized to a consistent glyph box and inherits the button's colour, so icons
+   can be authored without their own dimensions or fills. */
+.icon {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+}
+
+.icon :deep(svg) {
+  width: 1.375rem;
+  height: 1.375rem;
+  display: block;
+  fill: currentColor;
 }
 
 /* The tap glow: a soft radial bloom centred on the finger's touch point. It

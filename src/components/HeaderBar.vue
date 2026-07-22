@@ -2,8 +2,10 @@
 import HeaderButton from './HeaderButton.vue'
 import HeaderButtonGroup from './HeaderButtonGroup.vue'
 
-// A button descriptor looks like: { id: 'save', label: 'Save' }
-// `id` is sent back to the parent on click so it knows which button fired.
+// A button descriptor looks like: { id: 'save', label: 'Save', icon?: '<svg…>' }
+// When `icon` (raw SVG markup) is present it's shown instead of the text, and
+// `label` becomes the button's accessible name. `id` is sent back to the parent
+// on click so it knows which button fired.
 defineProps({
   title: {
     type: String,
@@ -58,6 +60,7 @@ function onButtonClick(side, id) {
           <HeaderButton
             v-else-if="leftButtons.length === 1"
             :label="leftButtons[0].label"
+            :icon="leftButtons[0].icon"
             @click="onButtonClick('left', leftButtons[0].id)"
           />
         </div>
@@ -73,6 +76,7 @@ function onButtonClick(side, id) {
           <HeaderButton
             v-else-if="rightButtons.length === 1"
             :label="rightButtons[0].label"
+            :icon="rightButtons[0].icon"
             @click="onButtonClick('right', rightButtons[0].id)"
           />
         </div>
@@ -164,11 +168,11 @@ header {
    `mode="out-in"` the outgoing content fades fully out before the new content
    fades in, so the two never overlap and the layout stays simple. */
 .header-fade-enter-active {
-  transition: opacity 0.13s ease;
+  transition: opacity 0.3s ease;
 }
 
 .header-fade-enter-from {
-  opacity: 0.5;
+  opacity: 0.8;
 }
 
 /* Scale the button groups on each side rather than the whole content, so each
@@ -178,14 +182,14 @@ header {
 .header-fade-enter-active .right-area,
 .header-fade-leave-active .left-area,
 .header-fade-leave-active .right-area {
-  transition: transform 0.18s ease;
+  transition: transform 0.3s ease;
 }
 
 .header-fade-enter-from .left-area,
 .header-fade-enter-from .right-area,
 .header-fade-leave-to .left-area,
 .header-fade-leave-to .right-area {
-  transform: scale(0.9);
+  transform: scale(0.95);
 }
 
 .title {
