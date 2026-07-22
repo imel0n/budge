@@ -96,18 +96,16 @@ function onAnimationEnd(event) {
 </template>
 
 <style scoped>
-/* The container owns all the glass chrome. `overflow: hidden` clips the tap glow
-   to the pill's rounded corners. */
 .group {
   display: flex;
   gap: 0;
   border-radius: 999px;
   overflow: hidden;
   /* Liquid glass: a faint tint over a blurred backdrop. */
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow:
     0 1px 2px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);

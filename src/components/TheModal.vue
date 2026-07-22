@@ -1,10 +1,11 @@
 <script setup>
+import { watch, onUnmounted } from 'vue'
 import HeaderBar from './HeaderBar.vue'
 
 // A half-height bottom sheet, driven by v-model:open. The sheet is a shell: the
 // caller supplies the `title`, any `rightButtons`, and the body via the default
 // slot. A "×" close button is always present on the left and dismisses the sheet.
-defineProps({
+const props = defineProps({
   open: {
     type: Boolean,
     default: false,
@@ -12,6 +13,13 @@ defineProps({
   title: {
     type: String,
     default: '',
+  },
+  // Whether the header's own title is shown. Mirrors HeaderBar: the caller keeps
+  // it hidden until its in-body large title scrolls behind the header, then fades
+  // it in. Defaults to always-visible for callers that show no in-body title.
+  titleVisible: {
+    type: Boolean,
+    default: true,
   },
   // Passed straight through to the header's right side. Same button descriptor
   // shape as HeaderBar ({ id, label, icon? }); clicks surface via `button-click`.
@@ -27,6 +35,19 @@ const emit = defineEmits(['update:open', 'button-click'])
 function close() {
   emit('update:open', false)
 }
+
+// Lock scrolling of the page behind the sheet while it's open, and restore on
+// close or unmount.
+watch(
+  () => props.open,
+  (open) => {
+    document.body.style.overflow = open ? 'hidden' : ''
+  },
+)
+
+onUnmounted(() => {
+  document.body.style.overflow = ''
+})
 
 // The "×" glyph for the always-present close button. No size/fill of its own —
 // HeaderButton sizes it and paints it with `currentColor`.
@@ -56,7 +77,7 @@ function onHeaderButton({ side, id }) {
           <HeaderBar
             variant="static"
             :title="title"
-            :title-visible="true"
+            :title-visible="titleVisible"
             :left-buttons="leftButtons"
             :right-buttons="rightButtons"
             @button-click="onHeaderButton"
