@@ -8,6 +8,10 @@
   /* Height of the fixed HeaderBar: safe-area inset + top padding + button row.
      Page bodies offset themselves by this so content clears the header. */
   --header-height: calc(env(safe-area-inset-top) + 0.125rem + 2.5rem);
+  /* Liquid-glass surfaces. --surface-1 is the outer TabBar pill; --surface-2 is
+     the brighter active indicator that slides over it. */
+  --surface-1: rgba(255, 255, 255, 0.06);
+  --surface-2: rgba(255, 255, 255, 0.14);
 }
 
 html,
