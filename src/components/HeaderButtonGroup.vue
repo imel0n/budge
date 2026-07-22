@@ -154,36 +154,62 @@ button {
 }
 
 /* The tap glow: a soft radial bloom centred on the finger's touch point. It
-   starts small and bright at the tap coordinates, then expands and fades across
-   the whole pill. The element is re-keyed per tap (see script), so this
-   animation restarts each time it mounts. */
+   plays in two stages tied to the press phase — light up at the tap point while
+   the finger is down, then ripple outward across the pill and fade when it
+   lifts. The element is re-keyed per tap (see script), so the bloom restarts
+   cleanly each time it mounts. */
 .glow {
   position: absolute;
   /* Oversize and centre on the tap point so the bloom can radiate past the pill
      edges before being clipped. */
   top: var(--glow-y);
   left: var(--glow-x);
-  width: 280%;
-  height: 280%;
+  width: 460%;
+  height: 460%;
   transform: translate(-50%, -50%) scale(0.45);
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(255, 255, 255, 0.6) 30%,
-    rgba(255, 255, 255, 0.28) 50%,
-    rgba(255, 255, 255, 0.12) 66%,
-    rgba(255, 255, 255, 0.04) 82%,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0.42) 18%,
+    rgba(255, 255, 255, 0.26) 36%,
+    rgba(255, 255, 255, 0.14) 54%,
+    rgba(255, 255, 255, 0.06) 72%,
+    rgba(255, 255, 255, 0.02) 86%,
     rgba(255, 255, 255, 0) 100%
   );
   pointer-events: none;
   z-index: 0;
-  animation: glow-bloom 500ms ease-out forwards;
+  /* At rest the glow is invisible; the press phase drives its two stages. */
+  opacity: 0;
 }
 
-@keyframes glow-bloom {
+/* Stage 1 — finger down: the glow lights up at the tap point and holds. Like
+   press-in, this always runs to completion, so it reaches full brightness even
+   on a quick tap, and stays lit through a press-and-hold. */
+.pressing .glow {
+  animation: glow-in 150ms ease-out forwards;
+}
+
+/* Stage 2 — finger up: the lit glow expands outward and fades. The ripple. */
+.releasing .glow {
+  animation: glow-out 480ms ease-out forwards;
+}
+
+@keyframes glow-in {
   from {
     transform: translate(-50%, -50%) scale(0.45);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(0.55);
+    opacity: 1;
+  }
+}
+
+@keyframes glow-out {
+  from {
+    transform: translate(-50%, -50%) scale(0.55);
     opacity: 1;
   }
   to {
@@ -243,8 +269,10 @@ button {
   .group.releasing {
     animation: none;
   }
-  .glow {
-    /* Skip the motion; a brief static bloom still gives tap feedback. */
+  .glow,
+  .pressing .glow,
+  .releasing .glow {
+    /* Skip the two-stage motion; a brief static fade still gives tap feedback. */
     animation: glow-fade 300ms ease-out forwards;
     transform: translate(-50%, -50%) scale(1);
   }

@@ -13,12 +13,63 @@ const transactionsLink = ref(null)
 const accountsLink = ref(null)
 const indicatorStyle = ref({})
 
+// Tap-to-expand for the whole bar, mirroring HeaderButton: swell up while a
+// finger is down, then a bouncy contract on release. We track the phase as a
+// class so the keyframes restart cleanly on each tap.
+//
+// The press-in swell always plays to completion — even on a quick tap that
+// lifts mid-swell — so the bar never snaps or reverses partway up. If the finger
+// is still down when press-in finishes (a press-and-hold), it stays expanded
+// until release. Only then does the release bounce play, always from full size.
+const phase = ref('') // '' | 'pressing' | 'releasing'
+const pressInDone = ref(false) // press-in swell has reached full size
+const releaseWanted = ref(false) // finger lifted; bounce is pending
+
+// A soft glow that radiates from the exact point the finger tapped. We record
+// the tap position (as a % of the bar box, so it survives the tap scaling) into
+// CSS variables and re-key the glow element on every tap so its bloom keyframes
+// restart cleanly, even on rapid repeat taps.
+const glowX = ref('50%')
+const glowY = ref('50%')
+const glowKey = ref(0)
+
+function onPointerDown(event) {
+  const rect = event.currentTarget.getBoundingClientRect()
+  glowX.value = `${((event.clientX - rect.left) / rect.width) * 100}%`
+  glowY.value = `${((event.clientY - rect.top) / rect.height) * 100}%`
+  glowKey.value += 1
+
+  phase.value = 'pressing'
+  pressInDone.value = false
+  releaseWanted.value = false
+}
+
+function onRelease() {
+  // Only bounce back if we were actually pressed (ignore stray leave/up events).
+  if (phase.value !== 'pressing') return
+  releaseWanted.value = true
+  // If the swell has already finished, start the bounce now; otherwise wait for
+  // press-in to complete (handled in onAnimationEnd).
+  if (pressInDone.value) phase.value = 'releasing'
+}
+
+function onAnimationEnd(event) {
+  // Keyframe names are scoped by Vue (suffixed with a hash), so match by prefix.
+  if (event.animationName.includes('press-in')) {
+    pressInDone.value = true
+    // Finger already lifted during the swell → play the bounce now.
+    if (releaseWanted.value) phase.value = 'releasing'
+  } else if (event.animationName.includes('press-out')) {
+    if (phase.value === 'releasing') phase.value = ''
+  }
+}
+
 function isActive(path) {
   return route.path === path
 }
 
 // Size and slide the active indicator to sit behind the active link: pad it out
-// past the link box (+32px wide, +8px tall) and offset it back by the same half
+// past the link box (+32px wide, +16px tall) and offset it back by the same half
 // so the pill is centred on the link. The spring transition on the indicator does
 // the rest as `route.path` changes.
 function updateIndicator() {
@@ -27,8 +78,8 @@ function updateIndicator() {
   if (!el) return
   indicatorStyle.value = {
     width: `${el.offsetWidth + 32}px`,
-    height: `${el.offsetHeight + 8}px`,
-    transform: `translate(${el.offsetLeft - 16}px, ${el.offsetTop - 4}px)`,
+    height: `${el.offsetHeight + 16}px`,
+    transform: `translate(${el.offsetLeft - 16}px, ${el.offsetTop - 8}px)`,
   }
 }
 
@@ -40,9 +91,19 @@ watch(
 </script>
 
 <template>
-  <nav class="tabbar">
+  <nav
+    class="tabbar"
+    :class="phase"
+    :style="{ '--glow-x': glowX, '--glow-y': glowY }"
+    @pointerdown="onPointerDown"
+    @pointerup="onRelease"
+    @pointercancel="onRelease"
+    @pointerleave="onRelease"
+    @animationend="onAnimationEnd"
+  >
+    <span v-if="glowKey" :key="glowKey" class="glow" aria-hidden="true" />
     <div class="active-indicator" :style="indicatorStyle"></div>
-    <RouterLink ref="transactionsLink" to="/transactions" replace>
+    <RouterLink ref="transactionsLink" to="/transactions" replace draggable="false">
       <span class="icon-stack">
         <!-- Base (outline) and active (filled) icons are stacked and crossfaded
              via opacity as the route changes. -->
@@ -63,7 +124,7 @@ watch(
       </span>
       <span class="label" data-text="Transactions">Transactions</span>
     </RouterLink>
-    <RouterLink ref="accountsLink" to="/accounts" replace>
+    <RouterLink ref="accountsLink" to="/accounts" replace draggable="false">
       <span class="icon-stack">
         <img
           class="icon-base"
@@ -89,47 +150,100 @@ watch(
 .tabbar {
   display: flex;
   gap: 24px;
-  padding: 8px 20px;
+  padding: 12px 20px;
   border-radius: 999px;
   position: fixed;
-  bottom: env(safe-area-inset-bottom);
+  bottom: max(0px, calc(env(safe-area-inset-bottom) - 12px));
   left: 50%;
   transform: translateX(-50%);
   background: var(--surface-1);
   backdrop-filter: blur(3px) saturate(180%);
   -webkit-backdrop-filter: blur(3px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.35),
-    inset 0 1px 1px rgba(255, 255, 255, 0.25),
-    inset 0 -1px 1px rgba(255, 255, 255, 0.08);
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.03);
   isolation: isolate;
+  /* Contain the tap glow within the pill. */
+  overflow: hidden;
+  /* Suppress the Safari long-press callout / "drag image out as asset" gesture
+     on the nav and its icons — this is a control surface, not draggable content. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  /* Grow from the bottom-centre so the tap swell rises off the screen edge
+     rather than clipping below it. The resting translateX(-50%) is preserved
+     in every keyframe so the bar stays horizontally centred while it scales. */
+  transform-origin: bottom center;
+  will-change: transform;
 }
 
-.tabbar::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: conic-gradient(
-    from 135deg,
-    rgba(180, 180, 180, 0.25) 0deg,
-    rgba(120, 120, 120, 0.05) 60deg,
-    rgba(160, 160, 160, 0.15) 140deg,
-    rgba(100, 100, 100, 0.03) 220deg,
-    rgba(170, 170, 170, 0.2) 300deg,
-    rgba(180, 180, 180, 0.25) 360deg
-  );
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-  z-index: -1;
+/* Finger down: swell up quickly and hold there until the finger lifts. */
+.tabbar.pressing {
+  animation: press-in 130ms cubic-bezier(0.22, 0.61, 0.7, 1) forwards;
+}
+
+/* Finger up: contract past the resting size, overshoot, then settle to rest. */
+.tabbar.releasing {
+  animation: press-out 360ms linear forwards;
+}
+
+@keyframes press-in {
+  from {
+    transform: translateX(-50%) scale(1);
+  }
+  to {
+    transform: translateX(-50%) scale(1.015);
+  }
+}
+
+@keyframes press-out {
+  0% {
+    /* press-in always runs to completion, so the bounce always starts from the
+       full expanded size. Ease-in-out into the undershoot for a smooth dip. */
+    transform: translateX(-50%) scale(1.01);
+    animation-timing-function: cubic-bezier(0.3, 0, 0.5, 1);
+  }
+  /* First bounce: contract past the resting size... */
+  40% {
+    transform: translateX(-50%) scale(1);
+    animation-timing-function: cubic-bezier(0.42, 0, 0.58, 1);
+  }
+  /* ...spring back up into a smaller overshoot... */
+  70% {
+    transform: translateX(-50%) scale(1);
+    animation-timing-function: cubic-bezier(0.42, 0, 0.58, 1);
+  }
+  /* ...then settle to rest. */
+  100% {
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabbar.pressing,
+  .tabbar.releasing {
+    animation: none;
+  }
+  /* The `.tabbar` prefix bumps specificity above the phase-driven glow rules
+     below, which would otherwise win on source order. */
+  .tabbar .glow,
+  .tabbar.pressing .glow,
+  .tabbar.releasing .glow {
+    /* Skip the two-stage motion; a brief static fade still gives tap feedback. */
+    animation: glow-fade 300ms ease-out forwards;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes glow-fade {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 .tabbar a {
@@ -143,6 +257,9 @@ watch(
   color: #ffffff;
   font-size: 11px;
   font-weight: 400;
+  /* Links are draggable by default in Safari — long-press lets you drag the
+     link chip around the screen. Suppress that; these are nav controls. */
+  -webkit-user-drag: none;
 }
 
 .tabbar a.router-link-active .label {
@@ -173,8 +290,8 @@ watch(
   border-radius: 999px;
   background: var(--surface-2);
   box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.25),
-    inset 0 -1px 1px rgba(255, 255, 255, 0.08);
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.03);
   isolation: isolate;
   transition:
     transform 0.4s cubic-bezier(0.34, 1.2, 0.4, 1),
@@ -185,31 +302,71 @@ watch(
   z-index: 0;
 }
 
-.active-indicator::before {
-  content: '';
+/* The tap glow: a soft radial bloom centred on the finger's touch point. It
+   plays in two stages tied to the press phase — light up at the tap point while
+   the finger is down, then ripple outward and fade when it lifts. The element is
+   re-keyed per tap (see script), so the bloom restarts cleanly each time it
+   mounts. */
+.glow {
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: conic-gradient(
-    from 135deg,
-    rgba(180, 180, 180, 0.25) 0deg,
-    rgba(120, 120, 120, 0.05) 60deg,
-    rgba(160, 160, 160, 0.15) 140deg,
-    rgba(100, 100, 100, 0.03) 220deg,
-    rgba(170, 170, 170, 0.2) 300deg,
-    rgba(180, 180, 180, 0.25) 360deg
+  /* Oversize and centre on the tap point so the bloom can radiate past the
+     bar edges before being clipped. */
+  top: var(--glow-y);
+  left: var(--glow-x);
+  width: 360%;
+  height: 1800%;
+  transform: translate(-50%, -50%) scale(0.45);
+  border-radius: 50%;
+  /* The gradient reaches full transparency well inside the element box (by ~55%)
+     so only empty space meets the box edge — this avoids a hard clip line that
+     would otherwise read as a visible bloom edge. */
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(255, 255, 255, 0.11) 12%,
+    rgba(255, 255, 255, 0.05) 22%,
+    rgba(255, 255, 255, 0.02) 32%,
+    rgba(255, 255, 255, 0.007) 43%,
+    rgba(255, 255, 255, 0) 55%
   );
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
   pointer-events: none;
-  z-index: -1;
+  z-index: 0;
+  /* At rest the glow is invisible; the press phase drives its two stages. */
+  opacity: 0;
+}
+
+/* Stage 1 — finger down: the glow lights up at the tap point and holds. Like
+   press-in, this always runs to completion, so it reaches full brightness even
+   on a quick tap, and stays lit through a press-and-hold. */
+.pressing .glow {
+  animation: glow-in 150ms ease-out forwards;
+}
+
+/* Stage 2 — finger up: the lit glow expands outward and fades. The ripple. */
+.releasing .glow {
+  animation: glow-out 480ms ease-out forwards;
+}
+
+@keyframes glow-in {
+  from {
+    transform: translate(-50%, -50%) scale(0.45);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(0.55);
+    opacity: 1;
+  }
+}
+
+@keyframes glow-out {
+  from {
+    transform: translate(-50%, -50%) scale(0.55);
+    opacity: 1;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+  }
 }
 
 .icon-stack {
@@ -222,6 +379,9 @@ watch(
   width: 24px;
   height: 24px;
   filter: invert(1);
+  /* Block the image-drag / save gesture on the icons themselves. */
+  -webkit-user-drag: none;
+  pointer-events: none;
 }
 
 .icon-stack img {

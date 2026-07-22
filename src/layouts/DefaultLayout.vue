@@ -2,7 +2,14 @@
 import { provide, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import HeaderBar from '../components/HeaderBar.vue'
+import HeaderButton from '../components/HeaderButton.vue'
 import TabBar from '../components/TabBar.vue'
+
+// Raw SVG for the "+" glyph. It carries no size or fill of its own — HeaderButton
+// sizes it and paints it with `currentColor`.
+const plusIcon = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <path d="M12 3a1 1 0 0 1 1 1v7h7a1 1 0 1 1 0 2h-7v7a1 1 0 1 1-2 0v-7H4a1 1 0 1 1 0-2h7V4a1 1 0 0 1 1-1z" />
+</svg>`
 
 // Pages set their own title via the injected setter (see usePageTitle key).
 const pageTitle = ref('')
@@ -65,6 +72,15 @@ watch(
       </Transition>
     </RouterView>
   </main>
+
+  <!-- Fixed "Add Transaction" action, pinned to the bottom-right and lifted
+       above the TabBar so it never overlaps the navigation. Lives in the layout
+       so it persists across pages. -->
+  <HeaderButton
+    class="add-transaction"
+    label="Add Transaction"
+    :icon="plusIcon"
+  />
   <TabBar />
 </template>
 
@@ -88,6 +104,23 @@ watch(
 .page-fade-enter-active,
 .page-fade-enter-from {
   transform-origin: center 50vh;
+}
+
+/* Locked to the bottom-right corner, sitting a comfortable gap above the TabBar
+   (which is pinned to the bottom with the safe-area inset). */
+.add-transaction {
+  position: fixed;
+  right: 20px;
+  bottom: calc(env(safe-area-inset-bottom) + 88px);
+  z-index: 10;
+  /* Slightly thinner padding so the pill hugs the glyph a touch more closely. */
+  padding: 0.75rem;
+}
+
+/* Enlarge the "+" glyph within this button only. */
+.add-transaction :deep(.icon svg) {
+  width: 1.75rem;
+  height: 1.75rem;
 }
 
 /* Same gutter as the header content, so page bodies align with it. */
