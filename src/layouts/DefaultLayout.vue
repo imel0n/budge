@@ -4,12 +4,16 @@ import { useRoute } from 'vue-router'
 import HeaderBar from '../components/HeaderBar.vue'
 import HeaderButton from '../components/HeaderButton.vue'
 import TabBar from '../components/TabBar.vue'
+import NewTransaction from '../components/NewTransaction.vue'
 
 // Raw SVG for the "+" glyph. It carries no size or fill of its own — HeaderButton
 // sizes it and paints it with `currentColor`.
 const plusIcon = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
   <path d="M12 3a1 1 0 0 1 1 1v7h7a1 1 0 1 1 0 2h-7v7a1 1 0 1 1-2 0v-7H4a1 1 0 1 1 0-2h7V4a1 1 0 0 1 1-1z" />
 </svg>`
+
+// The "New Transaction" sheet, opened by the fixed Add Transaction action.
+const newTransactionOpen = ref(false)
 
 // Pages set their own title via the injected setter (see usePageTitle key).
 const pageTitle = ref('')
@@ -80,8 +84,12 @@ watch(
     class="add-transaction"
     label="Add Transaction"
     :icon="plusIcon"
+    @click="newTransactionOpen = true"
   />
   <TabBar />
+
+  <!-- The "New Transaction" sheet, driven by the Add Transaction action. -->
+  <NewTransaction v-model:open="newTransactionOpen" />
 </template>
 
 <style scoped>

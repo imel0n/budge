@@ -35,6 +35,16 @@ defineProps({
     type: [String, Number],
     default: '',
   },
+  // Placement variant. `fixed` (default) pins the bar to the top of the viewport
+  // over the page body, honouring the status-bar safe-area inset and painting a
+  // black falloff. `static` drops it into normal flow with no top inset and a
+  // panel-grey falloff — used inside the modal sheet, where it sticks to the top
+  // of the panel and content scrolls under it.
+  variant: {
+    type: String,
+    default: 'fixed',
+    validator: (v) => ['fixed', 'static'].includes(v),
+  },
 })
 
 // Fires when any button is clicked, telling the parent which side and which id.
@@ -46,7 +56,7 @@ function onButtonClick(side, id) {
 </script>
 
 <template>
-  <header>
+  <header :class="variant">
     <!-- Keyed on the route so the whole header (title + buttons) cross-fades
          out and back in when the page changes. -->
     <Transition name="header-fade" mode="out-in">
@@ -86,16 +96,34 @@ function onButtonClick(side, id) {
 </template>
 
 <style scoped>
+/* Shared header shell. The two variants differ only in how the bar is placed
+   and painted; everything below is common to both. */
 header {
-  /* Pinned to the top so it stays put while the page body scrolls under it. */
+  /* Top inset the content clears. The `fixed` variant sits under the status bar
+     / dynamic island so it honours the safe-area inset; the `static` variant
+     has no status bar above it and zeroes this out (see header.static). */
+  --safe-top: env(safe-area-inset-top);
+  /* Vertical center of the page title — matches .title's `top`. The gradient
+     is fully opaque from the top down to this line, then fades to nothing. */
+  --title-mid: calc(50% + (var(--safe-top) + 0.125rem) / 2);
+  /* Keep header content clear of the status bar / dynamic island. */
+  padding-top: calc(var(--safe-top) + 0.125rem);
+  /* A small chin below the content so the gradient fade has room to breathe. */
+  padding-bottom: 8px;
+  /* Inset content off the edges while the bar itself stays full-bleed. In
+     landscape, honour the notch inset if it's larger than the gutter. */
+  padding-left: max(var(--app-gutter), env(safe-area-inset-left));
+  padding-right: max(var(--app-gutter), env(safe-area-inset-right));
+}
+
+/* Default placement: pinned to the top of the viewport so the page body scrolls
+   under it, painting a black falloff over the black page. */
+header.fixed {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 100;
-  /* Vertical center of the page title — matches .title's `top`. The gradient
-     is fully opaque from the top down to this line, then fades to nothing. */
-  --title-mid: calc(50% + (env(safe-area-inset-top) + 0.125rem) / 2);
   /* Solid black down to the title midpoint, then 36 smoothstep-eased steps
      fading to 0 opacity at the bottom edge for a soft iOS-style falloff. */
   background: linear-gradient(
@@ -140,14 +168,56 @@ header {
     rgba(0, 0, 0, 0.0022) calc(var(--title-mid) * 0.027 + 100% * 0.973),
     rgba(0, 0, 0, 0) 100%
   );
-  /* Keep header content clear of the status bar / dynamic island. */
-  padding-top: calc(env(safe-area-inset-top) + 0.125rem);
-  /* A small chin below the content so the gradient fade has room to breathe. */
-  padding-bottom: 8px;
-  /* Inset content off the edges while the bar itself stays full-bleed. In
-     landscape, honour the notch inset if it's larger than the gutter. */
-  padding-left: max(var(--app-gutter), env(safe-area-inset-left));
-  padding-right: max(var(--app-gutter), env(safe-area-inset-right));
+}
+
+/* Modal placement: sits in normal flow and sticks to the top of its scroll
+   container (the modal panel) so the sheet's content scrolls under it. No
+   status bar above the sheet, so no top inset. */
+header.static {
+  --safe-top: 0px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  /* Solid panel-grey down to the title midpoint, then 32 smoothstep-eased steps
+     fading to transparent so content scrolls out under a soft falloff. */
+  background: linear-gradient(
+    to bottom,
+    #1c1c1c 0%,
+    #1c1c1c var(--title-mid),
+    rgba(28, 28, 28, 0.9973) calc(var(--title-mid) * 0.9697 + 100% * 0.0303),
+    rgba(28, 28, 28, 0.9894) calc(var(--title-mid) * 0.9394 + 100% * 0.0606),
+    rgba(28, 28, 28, 0.9767) calc(var(--title-mid) * 0.9091 + 100% * 0.0909),
+    rgba(28, 28, 28, 0.9595) calc(var(--title-mid) * 0.8788 + 100% * 0.1212),
+    rgba(28, 28, 28, 0.9381) calc(var(--title-mid) * 0.8485 + 100% * 0.1515),
+    rgba(28, 28, 28, 0.9128) calc(var(--title-mid) * 0.8182 + 100% * 0.1818),
+    rgba(28, 28, 28, 0.8841) calc(var(--title-mid) * 0.7879 + 100% * 0.2121),
+    rgba(28, 28, 28, 0.8522) calc(var(--title-mid) * 0.7576 + 100% * 0.2424),
+    rgba(28, 28, 28, 0.8174) calc(var(--title-mid) * 0.7273 + 100% * 0.2727),
+    rgba(28, 28, 28, 0.7802) calc(var(--title-mid) * 0.697 + 100% * 0.303),
+    rgba(28, 28, 28, 0.7407) calc(var(--title-mid) * 0.6667 + 100% * 0.3333),
+    rgba(28, 28, 28, 0.6994) calc(var(--title-mid) * 0.6364 + 100% * 0.3636),
+    rgba(28, 28, 28, 0.6567) calc(var(--title-mid) * 0.6061 + 100% * 0.3939),
+    rgba(28, 28, 28, 0.6128) calc(var(--title-mid) * 0.5758 + 100% * 0.4242),
+    rgba(28, 28, 28, 0.568) calc(var(--title-mid) * 0.5455 + 100% * 0.4545),
+    rgba(28, 28, 28, 0.5227) calc(var(--title-mid) * 0.5152 + 100% * 0.4848),
+    rgba(28, 28, 28, 0.4773) calc(var(--title-mid) * 0.4848 + 100% * 0.5152),
+    rgba(28, 28, 28, 0.432) calc(var(--title-mid) * 0.4545 + 100% * 0.5455),
+    rgba(28, 28, 28, 0.3872) calc(var(--title-mid) * 0.4242 + 100% * 0.5758),
+    rgba(28, 28, 28, 0.3432) calc(var(--title-mid) * 0.3939 + 100% * 0.6061),
+    rgba(28, 28, 28, 0.3005) calc(var(--title-mid) * 0.3636 + 100% * 0.6364),
+    rgba(28, 28, 28, 0.2593) calc(var(--title-mid) * 0.3333 + 100% * 0.6667),
+    rgba(28, 28, 28, 0.2198) calc(var(--title-mid) * 0.303 + 100% * 0.697),
+    rgba(28, 28, 28, 0.1826) calc(var(--title-mid) * 0.2727 + 100% * 0.7273),
+    rgba(28, 28, 28, 0.1478) calc(var(--title-mid) * 0.2424 + 100% * 0.7576),
+    rgba(28, 28, 28, 0.1159) calc(var(--title-mid) * 0.2121 + 100% * 0.7879),
+    rgba(28, 28, 28, 0.0872) calc(var(--title-mid) * 0.1818 + 100% * 0.8182),
+    rgba(28, 28, 28, 0.0619) calc(var(--title-mid) * 0.1515 + 100% * 0.8485),
+    rgba(28, 28, 28, 0.0405) calc(var(--title-mid) * 0.1212 + 100% * 0.8788),
+    rgba(28, 28, 28, 0.0233) calc(var(--title-mid) * 0.0909 + 100% * 0.9091),
+    rgba(28, 28, 28, 0.0106) calc(var(--title-mid) * 0.0606 + 100% * 0.9394),
+    rgba(28, 28, 28, 0.0027) calc(var(--title-mid) * 0.0303 + 100% * 0.9697),
+    rgba(28, 28, 28, 0) 100%
+  );
 }
 
 /* The keyed wrapper that cross-fades on navigation. It carries the flex layout
@@ -195,9 +265,10 @@ header {
 .title {
   position: absolute;
   left: 50%;
-  /* Offset by half the safe-area inset so the title stays centered with the
-     buttons, which sit below the inset in normal flow. */
-  top: calc(50% + (env(safe-area-inset-top) + 0.125rem) / 2);
+  /* Matches the gradient's opaque midpoint. Offset by half the top inset so the
+     title stays centered with the buttons, which sit below the inset in normal
+     flow. Follows --safe-top, so it re-centers correctly in the static variant. */
+  top: var(--title-mid);
   margin: 0;
   font-size: 1.0625rem;
   font-weight: 600;

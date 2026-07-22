@@ -109,7 +109,6 @@ function onAnimationEnd(event) {
   -webkit-backdrop-filter: blur(4px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow:
-    0 0 0 4px rgba(255, 255, 255, 0.02),
     0 1px 2px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
   /* The whole pill is the animating object. */
@@ -151,6 +150,12 @@ button {
   height: 1.375rem;
   display: block;
   fill: currentColor;
+  /* Promote the glyph to its own compositor layer. The pill animates a scale
+     bounce on tap while carrying a backdrop-filter, which otherwise forces the
+     icon to re-rasterize every frame — making diagonal edges shimmer and appear
+     to wiggle. Painting it once and letting the compositor scale the cached
+     raster keeps it stable. */
+  transform: translateZ(0);
 }
 
 /* The tap glow: a soft radial bloom centred on the finger's touch point. It
