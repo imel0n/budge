@@ -97,7 +97,7 @@ function onHeaderButton({ side, id }) {
   background-color: #1c1c1c;
   border-top-left-radius: 48px;
   border-top-right-radius: 48px;
-  padding-top: 16px;
+  padding-top: 18px;
   padding-left: 8px;
   padding-right: 8px;
   /* Scroll container for the sticky header: the header pins to the top while

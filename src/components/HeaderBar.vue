@@ -103,13 +103,16 @@ header {
      / dynamic island so it honours the safe-area inset; the `static` variant
      has no status bar above it and zeroes this out (see header.static). */
   --safe-top: env(safe-area-inset-top);
+  /* A small chin below the content so the gradient fade has room to breathe. */
+  --chin: 8px;
   /* Vertical center of the page title — matches .title's `top`. The gradient
-     is fully opaque from the top down to this line, then fades to nothing. */
-  --title-mid: calc(50% + (var(--safe-top) + 0.125rem) / 2);
+     is fully opaque from the top down to this line, then fades to nothing.
+     The buttons center within the content box (between the top inset and the
+     chin), so offset by half of (inset − chin) to line the title up with them. */
+  --title-mid: calc(50% + (var(--safe-top) + 0.125rem - var(--chin)) / 2);
   /* Keep header content clear of the status bar / dynamic island. */
   padding-top: calc(var(--safe-top) + 0.125rem);
-  /* A small chin below the content so the gradient fade has room to breathe. */
-  padding-bottom: 8px;
+  padding-bottom: var(--chin);
   /* Inset content off the edges while the bar itself stays full-bleed. In
      landscape, honour the notch inset if it's larger than the gutter. */
   padding-left: max(var(--app-gutter), env(safe-area-inset-left));
