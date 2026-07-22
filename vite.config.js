@@ -13,6 +13,11 @@ export default defineConfig({
       // Let the SW work in `npm run dev` so you can test install/offline locally.
       devOptions: { enabled: true },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
+      workbox: {
+        // Precache bundled images too — by default only JS/CSS/HTML and the
+        // explicitly-declared icons are cached, so imported PNGs 404 offline.
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
+      },
       manifest: {
         name: 'Budge',
         short_name: 'Budge',
