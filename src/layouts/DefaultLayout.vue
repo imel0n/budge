@@ -1,5 +1,6 @@
 <script setup>
-import { provide, ref } from 'vue'
+import { provide, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import HeaderBar from '../components/HeaderBar.vue'
 import TabBar from '../components/TabBar.vue'
 
@@ -35,6 +36,16 @@ function setHeaderButtons({ left = [], right = [], onClick = () => {} } = {}) {
 }
 
 provide('setHeaderButtons', setHeaderButtons)
+
+// Reset the header to a blank slate on every navigation, before the incoming
+// page's setup runs its own setHeaderButtons(). This makes "a page pushes no
+// buttons" mean "no buttons" — so a page can never inherit the previous page's
+// buttons. Each page only ever declares what it wants; it never has to clear.
+const route = useRoute()
+watch(
+  () => route.path,
+  () => setHeaderButtons(),
+)
 </script>
 
 <template>
@@ -43,15 +54,42 @@ provide('setHeaderButtons', setHeaderButtons)
     :title-visible="headerTitleVisible"
     :left-buttons="leftButtons"
     :right-buttons="rightButtons"
+    :transition-key="route.path"
     @button-click="buttonHandler"
   />
   <main class="page-body">
-    <RouterView />
+    <!-- Fade the page body out and in on navigation, in step with the header. -->
+    <RouterView v-slot="{ Component }">
+      <Transition name="page-fade" mode="out-in">
+        <component :is="Component" />
+      </Transition>
+    </RouterView>
   </main>
   <TabBar />
 </template>
 
 <style scoped>
+/* Cross-fade the page body on navigation, matching the header's fade, and
+   expand it up to full size from a slight shrink (same as the header buttons). */
+.page-fade-enter-active {
+  transition:
+    opacity 0.18s ease,
+    transform 0.3s ease;
+}
+
+.page-fade-enter-from {
+  opacity: 0.3;
+  transform: scale(0.995);
+}
+
+/* Pin the scale pivot to the centre of the visible viewport rather than the
+   centre of the (possibly taller-than-viewport) page box, so the zoom stays
+   centred on what the user is actually looking at. */
+.page-fade-enter-active,
+.page-fade-enter-from {
+  transform-origin: center 50vh;
+}
+
 /* Same gutter as the header content, so page bodies align with it. */
 .page-body {
   /* Fill the full viewport height, including the bottom safe-area inset. In a

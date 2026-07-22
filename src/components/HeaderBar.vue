@@ -26,6 +26,13 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  // Changes whenever the page changes (the layout passes the route path). When
+  // it changes, the header content cross-fades out and the new page's content
+  // fades in.
+  transitionKey: {
+    type: [String, Number],
+    default: '',
+  },
 })
 
 // Fires when any button is clicked, telling the parent which side and which id.
@@ -38,33 +45,39 @@ function onButtonClick(side, id) {
 
 <template>
   <header>
-    <div class="left-area">
-      <HeaderButtonGroup
-        v-if="leftButtons.length === 2"
-        :buttons="leftButtons"
-        @button-click="onButtonClick('left', $event)"
-      />
-      <HeaderButton
-        v-else-if="leftButtons.length === 1"
-        :label="leftButtons[0].label"
-        @click="onButtonClick('left', leftButtons[0].id)"
-      />
-    </div>
+    <!-- Keyed on the route so the whole header (title + buttons) cross-fades
+         out and back in when the page changes. -->
+    <Transition name="header-fade" mode="out-in">
+      <div class="header-content" :key="transitionKey">
+        <div class="left-area">
+          <HeaderButtonGroup
+            v-if="leftButtons.length === 2"
+            :buttons="leftButtons"
+            @button-click="onButtonClick('left', $event)"
+          />
+          <HeaderButton
+            v-else-if="leftButtons.length === 1"
+            :label="leftButtons[0].label"
+            @click="onButtonClick('left', leftButtons[0].id)"
+          />
+        </div>
 
-    <h3 class="title" :class="{ visible: titleVisible }">{{ title }}</h3>
+        <h3 class="title" :class="{ visible: titleVisible }">{{ title }}</h3>
 
-    <div class="right-area">
-      <HeaderButtonGroup
-        v-if="rightButtons.length === 2"
-        :buttons="rightButtons"
-        @button-click="onButtonClick('right', $event)"
-      />
-      <HeaderButton
-        v-else-if="rightButtons.length === 1"
-        :label="rightButtons[0].label"
-        @click="onButtonClick('right', rightButtons[0].id)"
-      />
-    </div>
+        <div class="right-area">
+          <HeaderButtonGroup
+            v-if="rightButtons.length === 2"
+            :buttons="rightButtons"
+            @button-click="onButtonClick('right', $event)"
+          />
+          <HeaderButton
+            v-else-if="rightButtons.length === 1"
+            :label="rightButtons[0].label"
+            @click="onButtonClick('right', rightButtons[0].id)"
+          />
+        </div>
+      </div>
+    </Transition>
   </header>
 </template>
 
@@ -123,9 +136,6 @@ header {
     rgba(0, 0, 0, 0.0022) calc(var(--title-mid) * 0.027 + 100% * 0.973),
     rgba(0, 0, 0, 0) 100%
   );
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   /* Keep header content clear of the status bar / dynamic island. */
   padding-top: calc(env(safe-area-inset-top) + 0.125rem);
   /* A small chin below the content so the gradient fade has room to breathe. */
@@ -136,9 +146,46 @@ header {
   padding-right: max(var(--app-gutter), env(safe-area-inset-right));
 }
 
+/* The keyed wrapper that cross-fades on navigation. It carries the flex layout
+   so the header shell (gradient + padding) stays put while its content swaps. */
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
 .left-area,
 .right-area {
   display: flex;
+}
+
+/* Cross-fade the header content when the route (and thus the key) changes. With
+   `mode="out-in"` the outgoing content fades fully out before the new content
+   fades in, so the two never overlap and the layout stays simple. */
+.header-fade-enter-active {
+  transition: opacity 0.13s ease;
+}
+
+.header-fade-enter-from {
+  opacity: 0.5;
+}
+
+/* Scale the button groups on each side rather than the whole content, so each
+   group shrinks/expands around its own centre instead of drifting toward the
+   middle of the bar. */
+.header-fade-enter-active .left-area,
+.header-fade-enter-active .right-area,
+.header-fade-leave-active .left-area,
+.header-fade-leave-active .right-area {
+  transition: transform 0.18s ease;
+}
+
+.header-fade-enter-from .left-area,
+.header-fade-enter-from .right-area,
+.header-fade-leave-to .left-area,
+.header-fade-leave-to .right-area {
+  transform: scale(0.9);
 }
 
 .title {
