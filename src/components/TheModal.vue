@@ -27,11 +27,22 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  // Overrides the left side of the header; empty keeps the built-in "×" close.
+  leftButtons: {
+    type: Array,
+    default: () => [],
+  },
   // When true, the sheet fills the whole viewport height instead of the default
   // half-height.
   full: {
     type: Boolean,
     default: false,
+  },
+  // Passed straight through to the header, same as HeaderBar's own prop: change
+  // it to cross-fade the title/buttons when the sheet's content swaps.
+  transitionKey: {
+    type: [String, Number],
+    default: '',
   },
 })
 
@@ -62,7 +73,9 @@ const closeIcon = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
   <path d="M6.4 4.99a1 1 0 0 0-1.41 1.42L10.58 12l-5.6 5.59a1 1 0 1 0 1.42 1.42L12 13.41l5.59 5.6a1 1 0 0 0 1.42-1.42L13.41 12l5.6-5.59a1 1 0 0 0-1.42-1.42L12 10.58z" />
 </svg>`
 
-const leftButtons = [{ id: 'close', label: 'Close', icon: closeIcon }]
+const closeButton = [{ id: 'close', label: 'Close', icon: closeIcon }]
+
+const leftButtons = computed(() => (props.leftButtons.length ? props.leftButtons : closeButton))
 
 // Left "×" closes the sheet; anything the caller put on the right bubbles up.
 function onHeaderButton({ side, id }) {
@@ -205,6 +218,16 @@ watch(
 )
 
 onUnmounted(() => headerObserver?.disconnect())
+
+function getScrollTop() {
+  return scroller.value?.scrollTop ?? 0
+}
+
+function setScrollTop(v) {
+  if (scroller.value) scroller.value.scrollTop = v
+}
+
+defineExpose({ getScrollTop, setScrollTop })
 </script>
 
 <template>
@@ -232,9 +255,14 @@ onUnmounted(() => headerObserver?.disconnect())
             :title-visible="titleVisible"
             :left-buttons="leftButtons"
             :right-buttons="rightButtons"
+            :transition-key="transitionKey"
             @button-click="onHeaderButton"
           />
-          <div ref="scroller" class="modal-scroll" :style="{ paddingTop: `${headerHeight}px` }">
+          <div
+            ref="scroller"
+            class="modal-scroll"
+            :style="{ paddingTop: `${headerHeight}px`, '--modal-header-height': `${headerHeight}px` }"
+          >
             <div class="modal-body">
               <slot />
             </div>
@@ -315,7 +343,13 @@ onUnmounted(() => headerObserver?.disconnect())
 .modal-scroll {
   position: absolute;
   inset: 0;
+  /* Own stacking context so the body's internal z-indexes (e.g. transitioning
+     pages) can't escape and paint over the header, which sits above at z-index
+     1 in the panel's context. */
+  z-index: 0;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   padding-left: 8px;
   padding-right: 8px;
   /* Keep top-boundary overscroll from becoming a page pull-to-refresh, so the
@@ -342,6 +376,9 @@ onUnmounted(() => headerObserver?.disconnect())
 
 /* Content area below the header. Aligns to the same gutter as the header. */
 .modal-body {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
   padding-left: max(var(--app-gutter), env(safe-area-inset-left));
   padding-right: max(var(--app-gutter), env(safe-area-inset-right));
   padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);

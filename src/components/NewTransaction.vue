@@ -1,11 +1,11 @@
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, provide, reactive, ref, watch } from 'vue'
 import TheModal from './TheModal.vue'
-import SelectionList from './SelectionList.vue'
+import TransactionForm from './NewTransactionComponents/TransactionForm.vue'
+import SelectAccount from './NewTransactionComponents/SelectAccount.vue'
+import SelectCategory from './NewTransactionComponents/SelectCategory.vue'
+import SelectPayee from './NewTransactionComponents/SelectPayee.vue'
 
-// The "New Transaction" sheet: a TheModal shell with its own title, a "Save"
-// action on the right, and the transaction form as the body. Driven by
-// v-model:open from the layout.
 const props = defineProps({
   open: {
     type: Boolean,
@@ -15,17 +15,25 @@ const props = defineProps({
 
 const emit = defineEmits(['update:open'])
 
-// The sheet's right-hand action. Its click surfaces via TheModal's button-click.
-const rightButtons = [{ id: 'save', label: 'Save' }]
+const form = reactive({
+  type: 'expense',
+  amount: '',
+  account: '',
+  category: '',
+  payee: 'Self',
+  date: '',
+  time: '',
+  repeat: '',
+  location: false,
+  selectedLocation: '',
+})
 
-// Transaction form state.
 const types = [
   { id: 'expense', label: 'Expense' },
   { id: 'income', label: 'Income' },
   { id: 'transfer', label: 'Transfer' },
 ]
 
-// Placeholder categories, keyed by transaction type.
 const categoriesByType = {
   expense: ['expenseCategory 1', 'expenseCategory 2', 'expenseCategory 3'],
   income: ['incomeCategory 1', 'incomeCategory 2', 'incomeCategory 3'],
@@ -36,274 +44,204 @@ const accounts = ['Account 1', 'Account 2', 'Account 3']
 const payees = ['Self', 'Payee 1', 'Payee 2', 'Payee 3']
 const repeats = ['Never', 'Daily', 'Weekly', 'Monthly', 'Yearly']
 
-const type = ref('expense')
-const amount = ref('')
-const account = ref('')
-const category = ref('')
-const payee = ref('Self')
-const date = ref('')
-const time = ref('')
-const repeat = ref('')
-const location = ref(false)
-const selectedLocation = ref('')
+const categories = computed(() => categoriesByType[form.type])
 
-// Keep only digits and a single decimal point, capping the fraction at 2 places.
-function onAmountInput(e) {
-  let value = e.target.value.replace(/[^\d.]/g, '')
-  const [whole, ...rest] = value.split('.')
-  value = rest.length ? `${whole}.${rest.join('').slice(0, 2)}` : whole
-  amount.value = value
-  e.target.value = value
+const stack = ref(['root'])
+const direction = ref('forward')
+const current = computed(() => stack.value[stack.value.length - 1])
+
+const modal = ref(null)
+let scrollPositions = {}
+
+// The two pages share one scroll container, so restoring the incoming page's
+// scroll position would visibly yank the outgoing page mid-slide. The leaving
+// page is offset by the scroll delta to keep it visually pinned.
+const leaveTop = ref(0)
+
+function restoreScroll(view) {
+  nextTick(() => modal.value?.setScrollTop(scrollPositions[view] ?? 0))
 }
 
-// A single pill that slides behind the active type option, matching TabBar's
-// spring-driven active indicator.
-const toggleRef = ref(null)
-const indicatorStyle = ref({})
-
-function updateIndicator() {
-  const el = toggleRef.value?.querySelector('.type-option.active')
-  if (!el) return
-  indicatorStyle.value = {
-    width: `${el.offsetWidth}px`,
-    height: `${el.offsetHeight}px`,
-    transform: `translateX(${el.offsetLeft}px)`,
-  }
+function navigateTo(view, dir) {
+  const from = modal.value?.getScrollTop() ?? 0
+  scrollPositions[current.value] = from
+  leaveTop.value = (scrollPositions[view] ?? 0) - from
+  direction.value = dir
+  restoreScroll(view)
 }
 
-// Expenses read as negative; income and transfers as-is.
-const amountSign = computed(() => (type.value === 'expense' ? '-' : ''))
-const categories = computed(() => categoriesByType[type.value])
+function push(view) {
+  navigateTo(view, 'forward')
+  stack.value = [...stack.value, view]
+}
 
-// Native date/time inputs expect `YYYY-MM-DD` and `HH:MM` in local time.
+function pop() {
+  const next = stack.value[stack.value.length - 2]
+  navigateTo(next, 'back')
+  stack.value = stack.value.slice(0, -1)
+}
+
+provide('newTransaction', {
+  form,
+  types,
+  accounts,
+  categories,
+  payees,
+  repeats,
+  push,
+  pop,
+})
+
+const views = { account: SelectAccount, category: SelectCategory, payee: SelectPayee }
+const viewComponent = computed(() => views[current.value] ?? TransactionForm)
+
+const backIcon = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <path d="M15 5a1 1 0 0 1 0 1.41L9.42 12l5.58 5.59A1 1 0 0 1 13.6 19l-6.3-6.3a1 1 0 0 1 0-1.4l6.3-6.3A1 1 0 0 1 15 5z" />
+</svg>`
+
+const titles = {
+  root: 'New Transaction',
+  account: 'Select Account',
+  category: 'Select Category',
+  payee: 'Select Payee',
+}
+
+const isRoot = computed(() => current.value === 'root')
+const title = computed(() => titles[current.value] ?? '')
+const leftButtons = computed(() => (isRoot.value ? [] : [{ id: 'back', label: 'Back', icon: backIcon }]))
+const rightButtons = computed(() => (isRoot.value ? [{ id: 'save', label: 'Save' }] : []))
+
 function setNow() {
   const now = new Date()
   const pad = (n) => String(n).padStart(2, '0')
-  date.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
-  time.value = `${pad(now.getHours())}:${pad(now.getMinutes())}`
+  form.date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+  form.time = `${pad(now.getHours())}:${pad(now.getMinutes())}`
 }
 
-function resetForm() {
-  type.value = 'expense'
-  amount.value = ''
-  account.value = ''
-  category.value = ''
-  payee.value = 'Self'
-  date.value = ''
-  time.value = ''
-  repeat.value = ''
-  location.value = false
-  selectedLocation.value = ''
+function reset() {
+  Object.assign(form, {
+    type: 'expense',
+    amount: '',
+    account: '',
+    category: '',
+    payee: 'Self',
+    date: '',
+    time: '',
+    repeat: '',
+    location: false,
+    selectedLocation: '',
+  })
+  stack.value = ['root']
+  direction.value = 'forward'
+  scrollPositions = {}
 }
-
-function selectType(id) {
-  type.value = id
-  // Category is unique per type, so clear it when the type changes.
-  category.value = ''
-  nextTick(updateIndicator)
-}
-
-// Reveal the newly shown "Selected" row when Location is enabled.
-watch(location, async (on) => {
-  if (!on || !scroller) return
-  await nextTick()
-  scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' })
-})
 
 function onButton({ id }) {
-  if (id === 'save') {
-    // TODO: persist the new transaction.
+  if (id === 'back') {
+    pop()
+  } else if (id === 'save') {
     emit('update:open', false)
   }
 }
 
-// The modal panel that scrolls, resolved when the sheet opens.
-let scroller = null
-
 watch(
   () => props.open,
-  async (isOpen) => {
-    if (isOpen) {
-      // Wait for the teleported panel to mount.
-      await nextTick()
-      scroller = document.querySelector('.modal-panel')
-      setNow()
-      updateIndicator()
-    } else {
-      scroller = null
-      resetForm()
-    }
+  (isOpen) => {
+    if (isOpen) setNow()
+    else reset()
   },
 )
 </script>
 
 <template>
   <TheModal
+    ref="modal"
     :open="open"
-    title="New Transaction"
+    :title="title"
+    :left-buttons="leftButtons"
     :right-buttons="rightButtons"
+    :transition-key="current"
     full
     @update:open="emit('update:open', $event)"
     @button-click="onButton"
   >
-    <div class="amount-card">
-      <div class="amount-row">
-        <span class="amount-sign">{{ amountSign }}$</span>
-        <input
-          :value="amount"
-          class="amount-input"
-          type="text"
-          inputmode="decimal"
-          placeholder="0"
-          @input="onAmountInput"
-        />
-      </div>
-
-      <div class="amount-divider"></div>
-
-      <div ref="toggleRef" class="type-toggle">
-        <div class="type-indicator" :style="indicatorStyle"></div>
-        <button
-          v-for="t in types"
-          :key="t.id"
-          type="button"
-          class="type-option"
-          :class="{ active: type === t.id }"
-          @click="selectType(t.id)"
-        >
-          {{ t.label }}
-        </button>
-      </div>
-    </div>
-
-    <h2 class="section-title">Assignment</h2>
-    <div class="field-card">
-      <SelectionList v-model="account" label="Account" :options="accounts" />
-      <SelectionList v-model="category" label="Category" :options="categories" />
-      <SelectionList v-model="payee" label="Payee" :options="payees" />
-    </div>
-
-    <h2 class="section-title">Date and Time</h2>
-    <div class="field-card">
-      <SelectionList v-model="date" label="Date" type="date" />
-      <SelectionList v-model="time" label="Time" type="time" />
-      <SelectionList v-model="repeat" label="Repeat" :options="repeats" />
-    </div>
-
-    <h2 class="section-title">Location</h2>
-    <div class="field-card">
-      <SelectionList v-model="location" label="Enable Location" type="toggle" />
-      <SelectionList
-        v-if="location"
-        v-model="selectedLocation"
-        label="Selected"
-        placeholder="Location"
-      />
+    <div class="nav-stack" :style="{ '--leave-top': `${leaveTop}px` }">
+      <Transition :name="`nav-${direction}`">
+        <component :is="viewComponent" :key="current" />
+      </Transition>
     </div>
   </TheModal>
 </template>
 
 <style scoped>
-.amount-card {
-  background-color: var(--surface-1);
-  border-radius: 25px;
-  padding: 0.75rem 1rem 0.7rem;
-  margin-top: 0.5rem;
-}
-
-.amount-row {
-  display: flex;
-  align-items: baseline;
-  gap: 0.1rem;
-}
-
-.amount-sign,
-.amount-input {
-  font-family:
-    ui-rounded,
-    'SF Pro Rounded',
-    -apple-system,
-    sans-serif;
-}
-
-.amount-sign {
-  font-size: 2.25rem;
-  font-weight: 600;
-}
-
-.amount-input {
+.nav-stack {
+  position: relative;
   flex: 1;
+  /* During a transition both pages share the single grid cell, so each one
+     stretches to the full stack height — the incoming opaque page always
+     covers the outgoing one, whichever is taller. */
+  display: grid;
+  /* Bleed to the sheet's full width past the body gutter and the scroller's
+     inset, so the sliding pages' opaque backgrounds cover edge to edge — the
+     gutter is re-applied as padding on each page below. */
+  --page-inset-left: calc(max(var(--app-gutter), env(safe-area-inset-left)) + 8px);
+  --page-inset-right: calc(max(var(--app-gutter), env(safe-area-inset-right)) + 8px);
+  margin-left: calc(-1 * var(--page-inset-left));
+  margin-right: calc(-1 * var(--page-inset-right));
+  /* Bleed upward under the header the same way, so a page sliding in covers
+     the outgoing page's content showing through the header's translucent
+     falloff. The inset is re-applied as padding on each page below. */
+  margin-top: calc(-1 * var(--modal-header-height, 0px));
+}
+
+.nav-stack > * {
+  grid-area: 1 / 1;
   min-width: 0;
-  border: none;
-  background: transparent;
-  color: #ffffff;
-  caret-color: #ffffff;
-  font-size: 2.25rem;
-  font-weight: 600;
-  outline: none;
-  padding: 0;
+  background-color: #1c1c1c;
+  padding-left: var(--page-inset-left);
+  padding-right: var(--page-inset-right);
+  box-sizing: border-box;
+  /* Header-height bleed plus breathing room below the header. Lives on the
+     page itself (not .nav-stack) so each page's top margin can't collapse out
+     of the stack, which caused a jump mid-transition. */
+  padding-top: calc(var(--modal-header-height, 0px) + 0.75rem);
 }
 
-.amount-input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+.nav-forward-enter-active,
+.nav-forward-leave-active,
+.nav-back-enter-active,
+.nav-back-leave-active {
+  transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-.amount-divider {
-  height: 1px;
-  background-color: rgba(255, 255, 255, 0.1);
-  margin: 0.4rem -1rem 0;
-}
-
-.type-toggle {
+/* Keep the leaving page visually pinned while the shared scroller jumps to the
+   incoming page's restored scroll position. */
+.nav-forward-leave-active,
+.nav-back-leave-active {
   position: relative;
-  display: flex;
-  gap: 0.25rem;
-  margin-top: 0.7rem;
+  top: var(--leave-top, 0px);
 }
 
-.type-indicator {
-  position: absolute;
-  top: 0;
-  left: 0;
-  border-radius: 999px;
-  background-color: var(--surface-2);
-  transition:
-    transform 0.5s cubic-bezier(0.34, 1.2, 0.4, 1),
-    width 0.5s cubic-bezier(0.34, 1.2, 0.4, 1),
-    height 0.5s cubic-bezier(0.34, 1.2, 0.4, 1);
-  will-change: transform;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.type-option {
-  position: relative;
+/* Whichever page slides over the other sits on top: the entering page when
+   pushing, the leaving page when popping. */
+.nav-forward-enter-active,
+.nav-back-leave-active {
   z-index: 1;
-  flex: 1;
-  border: none;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 1rem;
-  font-weight: 500;
-  padding: 0.3rem 0;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: color 0.2s ease;
 }
 
-.type-option.active {
-  color: #ffffff;
+.nav-forward-enter-from {
+  transform: translateX(100%);
 }
 
-.section-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin: 1.75rem 0 0.75rem 14px;
+.nav-forward-leave-to {
+  transform: translateX(-30%);
 }
 
-.field-card {
-  background-color: var(--surface-1);
-  border-radius: 25px;
-  padding: 0 1.25rem;
+.nav-back-enter-from {
+  transform: translateX(-30%);
+}
+
+.nav-back-leave-to {
+  transform: translateX(100%);
 }
 </style>

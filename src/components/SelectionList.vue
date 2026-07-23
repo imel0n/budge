@@ -28,15 +28,19 @@ const props = defineProps({
     type: [String, Object],
     default: null,
   },
-  // 'select' (default) renders a picker; 'date'/'time' render native inputs;
-  // 'toggle' renders an iOS switch.
+  // 'select' picker; 'date'/'time' native inputs; 'toggle' switch; 'nav' emits
+  // `navigate`; 'option' emits `select` and shows a checkmark when `selected`.
   type: {
     type: String,
     default: 'select',
   },
+  selected: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'navigate', 'select'])
 
 const normalized = computed(() =>
   props.options.map((o) => (typeof o === 'object' ? o : { value: o, label: String(o) })),
@@ -46,6 +50,15 @@ const displayLabel = computed(() => {
   const match = normalized.value.find((o) => o.value === props.modelValue)
   return match ? match.label : props.placeholder
 })
+
+const checkIcon = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+  <path d="M20 6.5a1 1 0 0 1 0 1.4l-9.6 9.6a1 1 0 0 1-1.42 0l-4.5-4.5a1 1 0 1 1 1.42-1.4l3.79 3.78L18.6 6.5a1 1 0 0 1 1.4 0z" />
+</svg>`
+
+function onRowClick() {
+  if (props.type === 'nav') emit('navigate')
+  else if (props.type === 'option') emit('select')
+}
 </script>
 
 <template>
@@ -53,7 +66,12 @@ const displayLabel = computed(() => {
     :is="to ? 'router-link' : 'div'"
     :to="to"
     class="settings-row"
-    :class="{ 'has-icon': $slots.icon }"
+    :class="{
+      'has-icon': $slots.icon,
+      'is-nav': type === 'nav',
+      'is-option': type === 'option',
+    }"
+    @click="onRowClick"
   >
     <span v-if="$slots.icon" class="settings-icon">
       <slot name="icon" />
@@ -78,6 +96,13 @@ const displayLabel = computed(() => {
         :value="modelValue"
         @input="emit('update:modelValue', $event.target.value)"
       />
+      <span v-else-if="type === 'nav'" class="settings-value">{{ displayLabel }}</span>
+      <span
+        v-else-if="type === 'option'"
+        class="settings-check"
+        :class="{ shown: selected }"
+        v-html="checkIcon"
+      ></span>
       <template v-else>
         <select
           v-if="!to"
@@ -92,7 +117,7 @@ const displayLabel = computed(() => {
         <span class="settings-value">{{ displayLabel }}</span>
       </template>
       <svg
-        v-if="type === 'select'"
+        v-if="type === 'select' || type === 'nav'"
         class="chevron"
         viewBox="0 0 24 24"
         fill="none"
@@ -120,6 +145,28 @@ const displayLabel = computed(() => {
   color: inherit;
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+.settings-row.is-nav,
+.settings-row.is-option {
+  cursor: pointer;
+}
+
+.settings-check {
+  display: flex;
+  align-items: center;
+  color: #ffffff;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.settings-check.shown {
+  opacity: 1;
+}
+
+.settings-check :deep(svg) {
+  width: 1.4rem;
+  height: 1.4rem;
 }
 
 /* Inset divider: starts at the label (past the icon), runs to the edge. */
