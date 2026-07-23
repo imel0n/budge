@@ -49,19 +49,8 @@ const accounts = ['Account 1', 'Account 2', 'Account 3']
 const payees = ['Self', 'Payee 1', 'Payee 2', 'Payee 3']
 const repeats = ['Never', 'Daily', 'Weekly', 'Monthly', 'Yearly']
 const locations = {
-  saved: [
-    { name: 'Home', address: '123 Home Ave, Singapore 100001' },
-    { name: 'Work', address: '1 Business Link, Singapore 117592' },
-  ],
-  recents: [
-    { name: 'NUS MPSH 5', address: '8 Sports Dr 1st, Singapore 117291' },
-    { name: 'Kallang Bowl', address: '5 Stadium Walk, #02-22, Singapore 397693' },
-    { name: '15 Stamford', address: '15 Stamford Rd, Singapore 178906' },
-    { name: 'Kranji FCC', address: '91 Choa Chu Kang Way, Kranji Camp, Singapore' },
-    { name: 'NUS School of Computing, COM1', address: '1 Business Link, Singapore 117592' },
-    { name: 'Xcape Singapore - Real Escape Rooms', address: '161 Rochor Rd, Singapore 188436' },
-    { name: 'S16', address: '21 Lower Kent Ridge Rd, Singapore 119077' },
-  ],
+  saved: [],
+  recents: [],
 }
 
 const categories = computed(() => categoriesByType[form.type])

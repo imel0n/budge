@@ -1,5 +1,6 @@
 <script setup>
-import { computed, inject, ref } from 'vue'
+import { computed, inject, onBeforeUnmount, ref, watch } from 'vue'
+import { getCurrentPosition, reverseGeocode, searchLocations } from '../../lib/geocode'
 
 const { form, locations, pop } = inject('newTransaction')
 
@@ -20,6 +21,72 @@ function select(location) {
   form.selectedLocation = location.name
   pop()
 }
+
+// Bias search results toward the user's position once they've resolved it.
+const userCoords = ref(null)
+
+const locating = ref(false)
+const locateError = ref('')
+
+async function useCurrentLocation() {
+  if (locating.value) return
+  locating.value = true
+  locateError.value = ''
+  try {
+    const coords = await getCurrentPosition()
+    userCoords.value = { lat: coords.latitude, lon: coords.longitude }
+    const place = await reverseGeocode(coords.latitude, coords.longitude)
+    if (place) select(place)
+    else locateError.value = 'Could not resolve your location'
+  } catch (e) {
+    locateError.value = e.code === 1 ? 'Location permission denied' : 'Could not get your location'
+  } finally {
+    locating.value = false
+  }
+}
+
+const results = ref([])
+const searching = ref(false)
+const searchError = ref('')
+let debounceTimer
+let controller
+
+async function runSearch(term) {
+  controller = new AbortController()
+  searchError.value = ''
+  try {
+    results.value = await searchLocations(term, {
+      lat: userCoords.value?.lat,
+      lon: userCoords.value?.lon,
+      signal: controller.signal,
+    })
+  } catch (e) {
+    if (e.name === 'AbortError') return
+    searchError.value = 'Search failed'
+    results.value = []
+  } finally {
+    searching.value = false
+  }
+}
+
+watch(query, (q) => {
+  clearTimeout(debounceTimer)
+  controller?.abort()
+  const term = q.trim()
+  if (term.length < 3) {
+    results.value = []
+    searching.value = false
+    searchError.value = ''
+    return
+  }
+  searching.value = true
+  debounceTimer = setTimeout(() => runSearch(term), 300)
+})
+
+onBeforeUnmount(() => {
+  clearTimeout(debounceTimer)
+  controller?.abort()
+})
 </script>
 
 <template>
@@ -34,10 +101,12 @@ function select(location) {
 
     <div class="section-label">Current Location</div>
     <div class="list keep-separator">
-      <div class="row">
+      <button class="row" :disabled="locating" @click="useCurrentLocation">
         <span class="row-name">Current Location</span>
-        <span class="row-address">Current Street, Singapore 000001</span>
-      </div>
+        <span class="row-address">
+          {{ locating ? 'Locating…' : locateError || 'Use my current location' }}
+        </span>
+      </button>
     </div>
 
     <template v-if="saved.length">
@@ -62,6 +131,25 @@ function select(location) {
         <button
           v-for="location in recents"
           :key="location.name"
+          class="row"
+          :class="{ selected: form.selectedLocation === location.name }"
+          @click="select(location)"
+        >
+          <span class="row-name">{{ location.name }}</span>
+          <span class="row-address">{{ location.address }}</span>
+        </button>
+      </div>
+    </template>
+
+    <template v-if="query.trim().length >= 3">
+      <div class="section-label">Results</div>
+      <div v-if="searching" class="hint">Searching…</div>
+      <div v-else-if="searchError" class="hint">{{ searchError }}</div>
+      <div v-else-if="!results.length" class="hint">No matches found</div>
+      <div v-else class="list">
+        <button
+          v-for="location in results"
+          :key="location.key"
           class="row"
           :class="{ selected: form.selectedLocation === location.name }"
           @click="select(location)"
@@ -154,5 +242,15 @@ function select(location) {
 
 .row.selected .row-name {
   color: var(--accent, #3b82f6);
+}
+
+.row:disabled {
+  cursor: default;
+}
+
+.hint {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.95rem;
+  padding: 0.5rem 0;
 }
 </style>

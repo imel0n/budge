@@ -332,8 +332,6 @@ defineExpose({ getScrollTop, setScrollTop })
   background-color: #1c1c1c;
   border-top-left-radius: 48px;
   border-top-right-radius: 48px;
-  padding-left: 8px;
-  padding-right: 8px;
   /* The panel itself never scrolls — scrolling lives in .modal-scroll — so
      overscroll rubberbanding can't drag the header down with the content.
      Clips content to the rounded top corners. */

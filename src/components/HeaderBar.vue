@@ -183,6 +183,11 @@ header.static {
   --safe-top: 18px;
   position: relative;
   z-index: 1;
+  /* The panel's own gutter, no longer supplied by the panel itself (which
+     would also inset the header's full-bleed background) — added here so it
+     only narrows the button/title content. */
+  padding-left: calc(max(var(--app-gutter), env(safe-area-inset-left)) + 8px);
+  padding-right: calc(max(var(--app-gutter), env(safe-area-inset-right)) + 8px);
   /* Solid panel-grey down to the title midpoint, then 32 smoothstep-eased steps
      fading to transparent so content scrolls out under a soft falloff. */
   background: linear-gradient(
