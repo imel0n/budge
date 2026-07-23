@@ -6,11 +6,14 @@ import creditCard from '../assets/icons/credit-card.png'
 import creditCardActive from '../assets/icons/credit-card-active.png'
 import bank from '../assets/icons/bank.png'
 import bankActive from '../assets/icons/bank-active.png'
+import wallet from '../assets/icons/wallet.png'
+import walletActive from '../assets/icons/wallet-active.png'
 
 const route = useRoute()
 
 const transactionsLink = ref(null)
 const accountsLink = ref(null)
+const budgetsLink = ref(null)
 const indicatorStyle = ref({})
 
 // Tap-to-expand for the whole bar, mirroring HeaderButton: swell up while a
@@ -89,8 +92,12 @@ function moveIndicator(el) {
 }
 
 function updateIndicator() {
-  const activeLink = isActive('/transactions') ? transactionsLink.value : accountsLink.value
-  moveIndicator(activeLink?.$el)
+  const links = {
+    '/transactions': transactionsLink.value,
+    '/accounts': accountsLink.value,
+    '/budgets': budgetsLink.value,
+  }
+  moveIndicator(links[route.path]?.$el)
 }
 
 onMounted(() => nextTick(updateIndicator))
@@ -156,6 +163,25 @@ watch(
         />
       </span>
       <span class="label" data-text="Accounts">Accounts</span>
+    </RouterLink>
+    <RouterLink ref="budgetsLink" to="/budgets" replace draggable="false">
+      <span class="icon-stack">
+        <img
+          class="icon-base"
+          :class="{ hidden: isActive('/budgets') }"
+          :src="wallet"
+          alt=""
+          aria-hidden="true"
+        />
+        <img
+          class="icon-active"
+          :class="{ hidden: !isActive('/budgets') }"
+          :src="walletActive"
+          alt=""
+          aria-hidden="true"
+        />
+      </span>
+      <span class="label" data-text="Budgets">Budgets</span>
     </RouterLink>
   </nav>
 </template>
