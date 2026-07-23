@@ -5,6 +5,9 @@ import TransactionForm from './NewTransactionComponents/TransactionForm.vue'
 import SelectAccount from './NewTransactionComponents/SelectAccount.vue'
 import SelectCategory from './NewTransactionComponents/SelectCategory.vue'
 import SelectPayee from './NewTransactionComponents/SelectPayee.vue'
+import NewAccount from './NewTransactionComponents/NewAccount.vue'
+import NewCategory from './NewTransactionComponents/NewCategory.vue'
+import NewPayee from './NewTransactionComponents/NewPayee.vue'
 
 const props = defineProps({
   open: {
@@ -92,7 +95,16 @@ provide('newTransaction', {
   pop,
 })
 
-const views = { account: SelectAccount, category: SelectCategory, payee: SelectPayee }
+const views = {
+  account: SelectAccount,
+  category: SelectCategory,
+  payee: SelectPayee,
+  newAccount: NewAccount,
+  newCategory: NewCategory,
+  newPayee: NewPayee,
+}
+
+const newViews = { account: 'newAccount', category: 'newCategory', payee: 'newPayee' }
 const viewComponent = computed(() => views[current.value] ?? TransactionForm)
 
 // iOS-style edge-swipe back. While dragging, the previous page is rendered
@@ -253,17 +265,27 @@ const backIcon = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
   <path d="M15 5a1 1 0 0 1 0 1.41L9.42 12l5.58 5.59A1 1 0 0 1 13.6 19l-6.3-6.3a1 1 0 0 1 0-1.4l6.3-6.3A1 1 0 0 1 15 5z" />
 </svg>`
 
+const addIcon = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+  <path d="M12 5v14M5 12h14" />
+</svg>`
+
 const titles = {
   root: 'New Transaction',
   account: 'Select Account',
   category: 'Select Category',
   payee: 'Select Payee',
+  newAccount: 'New Account',
+  newCategory: 'New Category',
+  newPayee: 'New Payee',
 }
 
 const isRoot = computed(() => current.value === 'root')
 const title = computed(() => titles[current.value] ?? '')
 const leftButtons = computed(() => (isRoot.value ? [] : [{ id: 'back', label: 'Back', icon: backIcon }]))
-const rightButtons = computed(() => (isRoot.value ? [{ id: 'save', label: 'Save' }] : []))
+const rightButtons = computed(() => {
+  if (newViews[current.value]) return [{ id: 'add', label: 'Add', icon: addIcon }]
+  return [{ id: 'save', label: 'Save' }]
+})
 
 function setNow() {
   const now = new Date()
@@ -295,8 +317,11 @@ function reset() {
 function onButton({ id }) {
   if (id === 'back') {
     pop()
+  } else if (id === 'add') {
+    push(newViews[current.value])
   } else if (id === 'save') {
-    emit('update:open', false)
+    if (isRoot.value) emit('update:open', false)
+    else pop()
   }
 }
 
