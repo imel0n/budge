@@ -1,5 +1,5 @@
 <script setup>
-import { watch, onUnmounted } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
 import HeaderBar from './HeaderBar.vue'
 
 // A half-height bottom sheet, driven by v-model:open. The sheet is a shell: the
@@ -27,6 +27,12 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  // When true, the sheet fills the whole viewport height instead of the default
+  // half-height.
+  full: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 // `button-click` re-emits clicks on the caller's right buttons ({ side, id }).
@@ -42,6 +48,7 @@ watch(
   () => props.open,
   (open) => {
     document.body.style.overflow = open ? 'hidden' : ''
+    if (open) dragY.value = 0
   },
 )
 
@@ -65,13 +72,85 @@ function onHeaderButton({ side, id }) {
   }
   emit('button-click', { side, id })
 }
+
+// Drag-to-dismiss. When the panel is scrolled to its top and the user keeps
+// pulling down, the panel follows the finger. Released past 20% of its height,
+// the sheet closes (which unmounts the body, clearing its content); otherwise it
+// springs back.
+const panel = ref(null)
+const dragY = ref(0)
+const dragging = ref(false)
+
+let pointerId = null
+let startY = 0
+let active = false
+
+function onPointerDown(e) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return
+  if (!panel.value || panel.value.scrollTop > 0) return
+  pointerId = e.pointerId
+  startY = e.clientY
+  active = false
+}
+
+function onPointerMove(e) {
+  if (e.pointerId !== pointerId) return
+  const delta = e.clientY - startY
+
+  if (!active) {
+    // Only begin dragging on a downward pull while pinned to the top.
+    if (delta <= 0 || panel.value.scrollTop > 0) {
+      startY = e.clientY
+      return
+    }
+    active = true
+    dragging.value = true
+    panel.value.setPointerCapture(pointerId)
+  }
+
+  e.preventDefault()
+  dragY.value = Math.max(0, delta)
+}
+
+function endDrag(e) {
+  if (e.pointerId !== pointerId) return
+  pointerId = null
+  if (!active) return
+  active = false
+  dragging.value = false
+
+  const height = panel.value?.getBoundingClientRect().height ?? 0
+  if (height && dragY.value >= height * 0.2) {
+    // Continue the drag into a full slide-down from the current position, then
+    // close once it's off-screen so the exit looks continuous with the drag.
+    const el = panel.value
+    const onEnd = () => {
+      el.removeEventListener('transitionend', onEnd)
+      close()
+    }
+    el.addEventListener('transitionend', onEnd)
+    dragY.value = height
+    return
+  }
+  dragY.value = 0
+}
 </script>
 
 <template>
   <Teleport to="body">
-    <Transition name="sheet" :duration="500">
+    <Transition name="sheet" :duration="{ enter: 600, leave: 500 }">
       <div v-if="open" class="modal-backdrop" @click="close">
-        <div class="modal-panel" @click.stop>
+        <div
+          ref="panel"
+          class="modal-panel"
+          :class="{ full, dragging }"
+          :style="dragY ? { transform: `translateY(${dragY}px)` } : null"
+          @click.stop
+          @pointerdown="onPointerDown"
+          @pointermove="onPointerMove"
+          @pointerup="endDrag"
+          @pointercancel="endDrag"
+        >
         <!-- Non-fixed header that sticks to the top of the panel while the body
              below it scrolls under the grey falloff. -->
           <HeaderBar
@@ -100,7 +179,11 @@ function onHeaderButton({ side, id }) {
   align-items: flex-end;
 }
 
-.sheet-enter-active .modal-panel,
+.sheet-enter-active .modal-panel {
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
 .sheet-leave-active .modal-panel {
   transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1);
   will-change: transform;
@@ -124,6 +207,19 @@ function onHeaderButton({ side, id }) {
   /* Scroll container for the sticky header: the header pins to the top while
      the body scrolls under it. Clips content to the rounded top corners. */
   overflow-y: auto;
+  /* Spring back after a drag that didn't cross the dismiss threshold. */
+  transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+  touch-action: pan-y;
+}
+
+/* While actively dragging, the panel tracks the finger with no transition. */
+.modal-panel.dragging {
+  transition: none;
+}
+
+.modal-panel.full {
+  height: 92vh;
+  height: 92lvh;
 }
 
 /* Content area below the header. Aligns to the same gutter as the header. */
