@@ -48,7 +48,9 @@ const normalized = computed(() =>
 
 const displayLabel = computed(() => {
   const match = normalized.value.find((o) => o.value === props.modelValue)
-  return match ? match.label : props.placeholder
+  if (match) return match.label
+  if (props.modelValue !== '' && props.modelValue != null) return String(props.modelValue)
+  return props.placeholder
 })
 
 const checkIcon = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">

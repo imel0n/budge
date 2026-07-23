@@ -115,9 +115,11 @@ watch(
       <SelectionList v-model="form.location" label="Enable Location" type="toggle" />
       <SelectionList
         v-if="form.location"
-        v-model="form.selectedLocation"
+        :model-value="form.selectedLocation"
         label="Selected"
+        type="nav"
         placeholder="Location"
+        @navigate="push('location')"
       />
     </div>
   </div>

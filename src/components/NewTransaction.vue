@@ -5,9 +5,11 @@ import TransactionForm from './NewTransactionComponents/TransactionForm.vue'
 import SelectAccount from './NewTransactionComponents/SelectAccount.vue'
 import SelectCategory from './NewTransactionComponents/SelectCategory.vue'
 import SelectPayee from './NewTransactionComponents/SelectPayee.vue'
+import SelectLocation from './NewTransactionComponents/SelectLocation.vue'
 import NewAccount from './NewTransactionComponents/NewAccount.vue'
 import NewCategory from './NewTransactionComponents/NewCategory.vue'
 import NewPayee from './NewTransactionComponents/NewPayee.vue'
+import NewLocation from './NewTransactionComponents/NewLocation.vue'
 
 const props = defineProps({
   open: {
@@ -46,6 +48,21 @@ const categoriesByType = {
 const accounts = ['Account 1', 'Account 2', 'Account 3']
 const payees = ['Self', 'Payee 1', 'Payee 2', 'Payee 3']
 const repeats = ['Never', 'Daily', 'Weekly', 'Monthly', 'Yearly']
+const locations = {
+  saved: [
+    { name: 'Home', address: '123 Home Ave, Singapore 100001' },
+    { name: 'Work', address: '1 Business Link, Singapore 117592' },
+  ],
+  recents: [
+    { name: 'NUS MPSH 5', address: '8 Sports Dr 1st, Singapore 117291' },
+    { name: 'Kallang Bowl', address: '5 Stadium Walk, #02-22, Singapore 397693' },
+    { name: '15 Stamford', address: '15 Stamford Rd, Singapore 178906' },
+    { name: 'Kranji FCC', address: '91 Choa Chu Kang Way, Kranji Camp, Singapore' },
+    { name: 'NUS School of Computing, COM1', address: '1 Business Link, Singapore 117592' },
+    { name: 'Xcape Singapore - Real Escape Rooms', address: '161 Rochor Rd, Singapore 188436' },
+    { name: 'S16', address: '21 Lower Kent Ridge Rd, Singapore 119077' },
+  ],
+}
 
 const categories = computed(() => categoriesByType[form.type])
 
@@ -91,6 +108,7 @@ provide('newTransaction', {
   categories,
   payees,
   repeats,
+  locations,
   push,
   pop,
 })
@@ -99,12 +117,19 @@ const views = {
   account: SelectAccount,
   category: SelectCategory,
   payee: SelectPayee,
+  location: SelectLocation,
   newAccount: NewAccount,
   newCategory: NewCategory,
   newPayee: NewPayee,
+  newLocation: NewLocation,
 }
 
-const newViews = { account: 'newAccount', category: 'newCategory', payee: 'newPayee' }
+const newViews = {
+  account: 'newAccount',
+  category: 'newCategory',
+  payee: 'newPayee',
+  location: 'newLocation',
+}
 const viewComponent = computed(() => views[current.value] ?? TransactionForm)
 
 // iOS-style edge-swipe back. While dragging, the previous page is rendered
@@ -274,9 +299,11 @@ const titles = {
   account: 'Select Account',
   category: 'Select Category',
   payee: 'Select Payee',
+  location: 'Select Location',
   newAccount: 'New Account',
   newCategory: 'New Category',
   newPayee: 'New Payee',
+  newLocation: 'New Location',
 }
 
 const isRoot = computed(() => current.value === 'root')
