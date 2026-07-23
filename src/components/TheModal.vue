@@ -44,6 +44,12 @@ const props = defineProps({
     type: [String, Number],
     default: '',
   },
+  // When false, the drag-to-dismiss gesture is disabled; the sheet can only be
+  // closed via the header's close button.
+  dragToClose: {
+    type: Boolean,
+    default: true,
+  },
 })
 
 // `button-click` re-emits clicks on the caller's right buttons ({ side, id }).
@@ -117,7 +123,7 @@ let tracking = false
 let active = false
 
 function beginTrack(y) {
-  tracking = !!scroller.value && scroller.value.scrollTop <= 0
+  tracking = props.dragToClose && !!scroller.value && scroller.value.scrollTop <= 0
   startY = y
   active = false
 }

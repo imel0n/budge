@@ -95,6 +95,160 @@ provide('newTransaction', {
 const views = { account: SelectAccount, category: SelectCategory, payee: SelectPayee }
 const viewComponent = computed(() => views[current.value] ?? TransactionForm)
 
+// iOS-style edge-swipe back. While dragging, the previous page is rendered
+// underneath (parallax-offset and dimmed) and the current page tracks the
+// finger; release either settles into a pop or springs back. The eventual pop
+// swaps views with no Transition ('none') since the drag already animated it.
+const stackEl = ref(null)
+const prevView = computed(() => stack.value[stack.value.length - 2])
+const prevComponent = computed(() => views[prevView.value] ?? TransactionForm)
+
+const swipe = reactive({
+  active: false,
+  settling: false,
+  complete: false,
+  x: 0,
+  width: 1,
+  scrollOffset: 0,
+})
+
+const swipeProgress = computed(() => Math.min(Math.max(swipe.x / swipe.width, 0), 1))
+const settleTransition = 'transform 0.4s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.4s cubic-bezier(0.32, 0.72, 0, 1)'
+
+const swipeCurrentStyle = computed(() => {
+  if (!swipe.active) return null
+  return {
+    transform: `translateX(${swipeProgress.value * 100}%)`,
+    transition: swipe.settling ? settleTransition : 'none',
+    boxShadow: '0 0 24px rgba(0, 0, 0, 0.4)',
+  }
+})
+
+const swipePrevStyle = computed(() => ({
+  transform: `translateX(${(swipeProgress.value - 1) * 30}%)`,
+  // Pin the preview where the previous page's own scroll position will put it
+  // once the shared scroller is restored on pop.
+  top: `${swipe.scrollOffset}px`,
+  transition: swipe.settling ? settleTransition : 'none',
+}))
+
+const swipeDimStyle = computed(() => ({
+  opacity: 1 - swipeProgress.value,
+  transition: swipe.settling ? settleTransition : 'none',
+}))
+
+let swipeTracking = false
+let swipeStartX = 0
+let swipeStartY = 0
+let swipeLastX = 0
+let swipeLastT = 0
+let swipeVelocity = 0
+
+function swipeStart(x, y) {
+  if (isRoot.value || swipe.active) return false
+  const rect = stackEl.value.getBoundingClientRect()
+  if (x - rect.left > 32) return false
+  swipeTracking = true
+  swipeStartX = x
+  swipeStartY = y
+  swipeLastX = x
+  swipeLastT = performance.now()
+  swipeVelocity = 0
+  swipe.width = rect.width
+  return true
+}
+
+function swipeMove(x, y) {
+  if (!swipeTracking) return false
+  if (!swipe.active) {
+    const dx = x - swipeStartX
+    const dy = y - swipeStartY
+    if (Math.abs(dy) > Math.abs(dx)) {
+      swipeTracking = false
+      return false
+    }
+    if (dx < 6) return false
+    swipe.active = true
+    swipe.settling = false
+    swipe.complete = false
+    swipe.scrollOffset = (modal.value?.getScrollTop() ?? 0) - (scrollPositions[prevView.value] ?? 0)
+  }
+  const now = performance.now()
+  if (now > swipeLastT) swipeVelocity = (x - swipeLastX) / (now - swipeLastT)
+  swipeLastX = x
+  swipeLastT = now
+  swipe.x = Math.max(0, x - swipeStartX)
+  return true
+}
+
+function swipeEnd() {
+  if (!swipeTracking) return
+  swipeTracking = false
+  if (!swipe.active) return
+  const complete = swipeVelocity > 0.4 || (swipeProgress.value > 0.35 && swipeVelocity > -0.2)
+  swipe.complete = complete
+  const target = complete ? swipe.width : 0
+  if (swipe.x === target) {
+    finishSwipe()
+    return
+  }
+  swipe.settling = true
+  swipe.x = target
+}
+
+function finishSwipe() {
+  swipe.settling = false
+  if (swipe.complete) {
+    navigateTo(prevView.value, 'none')
+    stack.value = stack.value.slice(0, -1)
+  }
+  swipe.active = false
+  swipe.x = 0
+}
+
+function onSwipeSettled(e) {
+  if (!swipe.settling || e.target !== e.currentTarget || e.propertyName !== 'transform') return
+  finishSwipe()
+}
+
+// stopPropagation keeps the edge gesture from also engaging the sheet's own
+// drag-to-dismiss tracking on the panel.
+function onStackTouchStart(e) {
+  if (e.touches.length === 1 && swipeStart(e.touches[0].clientX, e.touches[0].clientY)) e.stopPropagation()
+}
+
+function onStackTouchMove(e) {
+  if (swipeMove(e.touches[0].clientX, e.touches[0].clientY)) {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+}
+
+function onStackMouseMove(e) {
+  swipeMove(e.clientX, e.clientY)
+}
+
+function onStackMouseUp() {
+  window.removeEventListener('mousemove', onStackMouseMove)
+  window.removeEventListener('mouseup', onStackMouseUp)
+  swipeEnd()
+}
+
+function onStackMouseDown(e) {
+  if (e.button !== 0) return
+  if (!swipeStart(e.clientX, e.clientY)) return
+  e.stopPropagation()
+  window.addEventListener('mousemove', onStackMouseMove)
+  window.addEventListener('mouseup', onStackMouseUp)
+}
+
+// Non-passive so preventDefault can swallow the native vertical scroll once the
+// horizontal drag takes over (template listeners are passive by default here).
+watch(stackEl, (el, prev) => {
+  if (prev) prev.removeEventListener('touchmove', onStackTouchMove)
+  if (el) el.addEventListener('touchmove', onStackTouchMove, { passive: false })
+})
+
 const backIcon = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
   <path d="M15 5a1 1 0 0 1 0 1.41L9.42 12l5.58 5.59A1 1 0 0 1 13.6 19l-6.3-6.3a1 1 0 0 1 0-1.4l6.3-6.3A1 1 0 0 1 15 5z" />
 </svg>`
@@ -134,6 +288,8 @@ function reset() {
   stack.value = ['root']
   direction.value = 'forward'
   scrollPositions = {}
+  swipeTracking = false
+  Object.assign(swipe, { active: false, settling: false, complete: false, x: 0 })
 }
 
 function onButton({ id }) {
@@ -161,13 +317,26 @@ watch(
     :left-buttons="leftButtons"
     :right-buttons="rightButtons"
     :transition-key="current"
+    :drag-to-close="isRoot"
     full
     @update:open="emit('update:open', $event)"
     @button-click="onButton"
   >
-    <div class="nav-stack" :style="{ '--leave-top': `${leaveTop}px` }">
+    <div
+      ref="stackEl"
+      class="nav-stack"
+      :style="{ '--leave-top': `${leaveTop}px` }"
+      @touchstart="onStackTouchStart"
+      @touchend="swipeEnd"
+      @touchcancel="swipeEnd"
+      @mousedown="onStackMouseDown"
+    >
+      <div v-if="swipe.active" class="swipe-prev" :style="swipePrevStyle">
+        <component :is="prevComponent" />
+        <div class="swipe-dim" :style="swipeDimStyle"></div>
+      </div>
       <Transition :name="`nav-${direction}`">
-        <component :is="viewComponent" :key="current" />
+        <component :is="viewComponent" :key="current" :style="swipeCurrentStyle" @transitionend="onSwipeSettled" />
       </Transition>
     </div>
   </TheModal>
@@ -243,5 +412,16 @@ watch(
 
 .nav-back-leave-to {
   transform: translateX(100%);
+}
+
+.swipe-prev {
+  position: relative;
+}
+
+.swipe-dim {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.25);
+  pointer-events: none;
 }
 </style>
