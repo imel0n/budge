@@ -7,7 +7,7 @@ import { computed } from 'vue'
 // inside a card and dividers appear automatically between rows.
 const props = defineProps({
   modelValue: {
-    type: [String, Number],
+    type: [String, Number, Boolean],
     default: '',
   },
   label: {
@@ -27,6 +27,12 @@ const props = defineProps({
   to: {
     type: [String, Object],
     default: null,
+  },
+  // 'select' (default) renders a picker; 'date'/'time' render native inputs;
+  // 'toggle' renders an iOS switch.
+  type: {
+    type: String,
+    default: 'select',
   },
 })
 
@@ -54,18 +60,44 @@ const displayLabel = computed(() => {
     </span>
     <span class="settings-label">{{ label }}</span>
     <div class="settings-select">
-      <select
-        v-if="!to"
-        :value="modelValue"
-        @change="emit('update:modelValue', $event.target.value)"
+      <button
+        v-if="type === 'toggle'"
+        type="button"
+        class="settings-toggle"
+        :class="{ on: modelValue }"
+        role="switch"
+        :aria-checked="modelValue ? 'true' : 'false'"
+        @click="emit('update:modelValue', !modelValue)"
       >
-        <option value="">{{ placeholder }}</option>
-        <option v-for="o in normalized" :key="o.value" :value="o.value">
-          {{ o.label }}
-        </option>
-      </select>
-      <span class="settings-value">{{ displayLabel }}</span>
-      <svg class="chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <span class="toggle-knob"></span>
+      </button>
+      <input
+        v-else-if="!to && (type === 'date' || type === 'time')"
+        class="settings-input"
+        :type="type"
+        :value="modelValue"
+        @input="emit('update:modelValue', $event.target.value)"
+      />
+      <template v-else>
+        <select
+          v-if="!to"
+          :value="modelValue"
+          @change="emit('update:modelValue', $event.target.value)"
+        >
+          <option value="">{{ placeholder }}</option>
+          <option v-for="o in normalized" :key="o.value" :value="o.value">
+            {{ o.label }}
+          </option>
+        </select>
+        <span class="settings-value">{{ displayLabel }}</span>
+      </template>
+      <svg
+        v-if="type === 'select'"
+        class="chevron"
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden="true"
+      >
         <path
           d="M9 6l6 6-6 6"
           stroke="currentColor"
@@ -87,6 +119,7 @@ const displayLabel = computed(() => {
   padding: 0.85rem 0;
   color: inherit;
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Inset divider: starts at the label (past the icon), runs to the edge. */
@@ -95,7 +128,7 @@ const displayLabel = computed(() => {
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
+  right: -1.25rem;
   height: 1px;
   background: rgba(255, 255, 255, 0.1);
 }
@@ -146,6 +179,62 @@ const displayLabel = computed(() => {
 
 .settings-value {
   font-size: 1.1rem;
+}
+
+.settings-input {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: inherit;
+  font-size: 1.1rem;
+  line-height: 1.1;
+  text-align: right;
+  outline: none;
+  margin: -0.5rem 0;
+  padding: 0;
+  height: 1.1rem;
+}
+
+.settings-input::-webkit-date-and-time-value {
+  margin: 0;
+}
+
+.settings-input::-webkit-calendar-picker-indicator {
+  margin: 0;
+  padding: 0;
+}
+
+.settings-toggle {
+  flex: none;
+  width: 3.75rem;
+  height: 1.95rem;
+  /* Keep the taller switch from stretching the row past the text rows. */
+  margin: -0.425rem 0;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  transition: background 0.25s ease;
+}
+
+.settings-toggle.on {
+  background: #34c759;
+}
+
+.toggle-knob {
+  display: block;
+  width: 2.25rem;
+  height: 1.65rem;
+  margin: 0.15rem;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.25s cubic-bezier(0.34, 1.2, 0.4, 1);
+}
+
+.settings-toggle.on .toggle-knob {
+  transform: translateX(1.2rem);
 }
 
 .chevron {

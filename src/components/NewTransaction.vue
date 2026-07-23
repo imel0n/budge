@@ -32,9 +32,20 @@ const categoriesByType = {
   transfer: ['transferCategory 1', 'transferCategory 2', 'transferCategory 3'],
 }
 
+const accounts = ['Account 1', 'Account 2', 'Account 3']
+const payees = ['Self', 'Payee 1', 'Payee 2', 'Payee 3']
+const repeats = ['Never', 'Daily', 'Weekly', 'Monthly', 'Yearly']
+
 const type = ref('expense')
 const amount = ref('')
+const account = ref('')
 const category = ref('')
+const payee = ref('Self')
+const date = ref('')
+const time = ref('')
+const repeat = ref('')
+const location = ref(false)
+const selectedLocation = ref('')
 
 // Keep only digits and a single decimal point, capping the fraction at 2 places.
 function onAmountInput(e) {
@@ -64,12 +75,40 @@ function updateIndicator() {
 const amountSign = computed(() => (type.value === 'expense' ? '-' : ''))
 const categories = computed(() => categoriesByType[type.value])
 
+// Native date/time inputs expect `YYYY-MM-DD` and `HH:MM` in local time.
+function setNow() {
+  const now = new Date()
+  const pad = (n) => String(n).padStart(2, '0')
+  date.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+  time.value = `${pad(now.getHours())}:${pad(now.getMinutes())}`
+}
+
+function resetForm() {
+  type.value = 'expense'
+  amount.value = ''
+  account.value = ''
+  category.value = ''
+  payee.value = 'Self'
+  date.value = ''
+  time.value = ''
+  repeat.value = ''
+  location.value = false
+  selectedLocation.value = ''
+}
+
 function selectType(id) {
   type.value = id
   // Category is unique per type, so clear it when the type changes.
   category.value = ''
   nextTick(updateIndicator)
 }
+
+// Reveal the newly shown "Selected" row when Location is enabled.
+watch(location, async (on) => {
+  if (!on || !scroller) return
+  await nextTick()
+  scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' })
+})
 
 function onButton({ id }) {
   if (id === 'save') {
@@ -119,6 +158,7 @@ watch(
       await nextTick()
       scroller = titleRef.value?.closest('.modal-panel') ?? null
       collapsed.value = false
+      setNow()
       updateIndicator()
       if (scroller) {
         scroller.addEventListener('scroll', onScroll, { passive: true })
@@ -132,6 +172,7 @@ watch(
       frame = 0
       scroller = null
       collapsed.value = false
+      resetForm()
     }
   },
 )
@@ -181,7 +222,27 @@ watch(
 
     <h2 class="section-title">Assignment</h2>
     <div class="field-card">
+      <SelectionList v-model="account" label="Account" :options="accounts" />
       <SelectionList v-model="category" label="Category" :options="categories" />
+      <SelectionList v-model="payee" label="Payee" :options="payees" />
+    </div>
+
+    <h2 class="section-title">Date and Time</h2>
+    <div class="field-card">
+      <SelectionList v-model="date" label="Date" type="date" />
+      <SelectionList v-model="time" label="Time" type="time" />
+      <SelectionList v-model="repeat" label="Repeat" :options="repeats" />
+    </div>
+
+    <h2 class="section-title">Location</h2>
+    <div class="field-card">
+      <SelectionList v-model="location" label="Enable Location" type="toggle" />
+      <SelectionList
+        v-if="location"
+        v-model="selectedLocation"
+        label="Selected"
+        placeholder="Location"
+      />
     </div>
   </TheModal>
 </template>
@@ -213,7 +274,11 @@ h1.collapsed {
 
 .amount-sign,
 .amount-input {
-  font-family: ui-rounded, 'SF Pro Rounded', -apple-system, sans-serif;
+  font-family:
+    ui-rounded,
+    'SF Pro Rounded',
+    -apple-system,
+    sans-serif;
 }
 
 .amount-sign {
@@ -285,9 +350,9 @@ h1.collapsed {
 }
 
 .section-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 1.75rem 0 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 1.75rem 0 0.75rem 14px;
 }
 
 .field-card {
