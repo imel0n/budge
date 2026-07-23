@@ -42,6 +42,11 @@ function onPointerDown(event) {
   phase.value = 'pressing'
   pressInDone.value = false
   releaseWanted.value = false
+
+  // Slide the indicator to the pressed link right away rather than waiting for
+  // the route to change on release. The spring transition then covers the gap.
+  const link = event.target.closest('a')
+  if (link) moveIndicator(link)
 }
 
 function onRelease() {
@@ -55,6 +60,8 @@ function onRelease() {
 
 function onAnimationEnd(event) {
   // Keyframe names are scoped by Vue (suffixed with a hash), so match by prefix.
+  // Ignore the indicator's own press animations bubbling up from its child.
+  if (event.animationName.includes('indicator')) return
   if (event.animationName.includes('press-in')) {
     pressInDone.value = true
     // Finger already lifted during the swell → play the bounce now.
@@ -72,15 +79,18 @@ function isActive(path) {
 // past the link box (+32px wide, +16px tall) and offset it back by the same half
 // so the pill is centred on the link. The spring transition on the indicator does
 // the rest as `route.path` changes.
-function updateIndicator() {
-  const activeLink = isActive('/transactions') ? transactionsLink.value : accountsLink.value
-  const el = activeLink?.$el
+function moveIndicator(el) {
   if (!el) return
   indicatorStyle.value = {
     width: `${el.offsetWidth + 32}px`,
     height: `${el.offsetHeight + 16}px`,
     transform: `translate(${el.offsetLeft - 16}px, ${el.offsetTop - 8}px)`,
   }
+}
+
+function updateIndicator() {
+  const activeLink = isActive('/transactions') ? transactionsLink.value : accountsLink.value
+  moveIndicator(activeLink?.$el)
 }
 
 onMounted(() => nextTick(updateIndicator))
@@ -101,8 +111,12 @@ watch(
     @pointerleave="onRelease"
     @animationend="onAnimationEnd"
   >
-    <span v-if="glowKey" :key="glowKey" class="glow" aria-hidden="true" />
-    <div class="active-indicator" :style="indicatorStyle"></div>
+    <span class="glow-clip" aria-hidden="true">
+      <span v-if="glowKey" :key="glowKey" class="glow" />
+    </span>
+    <div class="active-indicator" :style="indicatorStyle">
+      <div class="indicator-pill"></div>
+    </div>
     <RouterLink ref="transactionsLink" to="/transactions" replace draggable="false">
       <span class="icon-stack">
         <!-- Base (outline) and active (filled) icons are stacked and crossfaded
@@ -165,8 +179,6 @@ watch(
     inset 0 1px 1px rgba(255, 255, 255, 0.1),
     inset 0 -1px 1px rgba(255, 255, 255, 0.03);
   isolation: isolate;
-  /* Contain the tap glow within the pill. */
-  overflow: hidden;
   /* Suppress the Safari long-press callout / "drag image out as asset" gesture
      on the nav and its icons — this is a control surface, not draggable content. */
   -webkit-touch-callout: none;
@@ -225,6 +237,15 @@ watch(
   .tabbar.pressing,
   .tabbar.releasing {
     animation: none;
+  }
+  .tabbar .indicator-pill,
+  .tabbar.pressing .indicator-pill,
+  .tabbar.releasing .indicator-pill {
+    animation: none;
+  }
+  .tabbar.pressing .indicator-pill::before,
+  .tabbar.pressing .indicator-pill::after {
+    opacity: 0;
   }
   /* The `.tabbar` prefix bumps specificity above the phase-driven glow rules
      below, which would otherwise win on source order. */
@@ -287,17 +308,103 @@ watch(
   position: absolute;
   top: 0;
   left: 0;
+  transition:
+    transform 0.5s cubic-bezier(0.34, 1.2, 0.4, 1),
+    width 0.5s cubic-bezier(0.34, 1.2, 0.4, 1),
+    height 0.5s cubic-bezier(0.34, 1.2, 0.4, 1);
+  will-change: transform;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* The visible pill lives on an inner layer so its press scale composes with the
+   outer layer's positioning transform. */
+.indicator-pill {
+  position: relative;
+  width: 100%;
+  height: 100%;
   border-radius: 999px;
   background: var(--surface-2);
   box-shadow:
     inset 0 1px 1px rgba(255, 255, 255, 0.1),
     inset 0 -1px 1px rgba(255, 255, 255, 0.03);
   isolation: isolate;
-  transition:
-    transform 0.4s cubic-bezier(0.34, 1.2, 0.4, 1),
-    width 0.4s cubic-bezier(0.34, 1.2, 0.4, 1),
-    height 0.4s cubic-bezier(0.34, 1.2, 0.4, 1);
+  transform: scale(1);
+  transform-origin: center;
   will-change: transform;
+}
+
+.indicator-pill::before,
+.indicator-pill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  filter: blur(0.4px);
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+}
+
+.pressing .indicator-pill::before,
+.pressing .indicator-pill::after {
+  opacity: 1;
+  transition: opacity 150ms ease-out;
+}
+
+.indicator-pill::before {
+  border: 1px solid rgba(255, 70, 90, 0.28);
+  transform: translate(-0.75px, -0.5px);
+}
+
+.indicator-pill::after {
+  border: 1px solid rgba(70, 200, 255, 0.28);
+  transform: translate(0.75px, 0.5px);
+}
+
+.pressing .indicator-pill {
+  animation: indicator-press-in 260ms cubic-bezier(0.22, 0.61, 0.7, 1) forwards;
+}
+
+.releasing .indicator-pill {
+  animation: indicator-press-out 480ms cubic-bezier(0.22, 0.61, 0.7, 1) forwards;
+}
+
+@keyframes indicator-press-in {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.2, 1.3);
+  }
+}
+
+@keyframes indicator-press-out {
+  0% {
+    transform: scale(1.2, 1.3);
+    animation-timing-function: cubic-bezier(0.3, 0, 0.5, 1);
+  }
+  40% {
+    transform: scale(0.99);
+    animation-timing-function: cubic-bezier(0.42, 0, 0.58, 1);
+  }
+  70% {
+    transform: scale(1);
+    animation-timing-function: cubic-bezier(0.42, 0, 0.58, 1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Clips the tap glow to the pill shape now that the bar itself no longer hides
+   overflow (the indicator must be free to extend past the bar's edges). */
+.glow-clip {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  overflow: hidden;
   pointer-events: none;
   z-index: 0;
 }
