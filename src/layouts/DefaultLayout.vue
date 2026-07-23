@@ -119,16 +119,18 @@ watch(
 .add-transaction {
   position: fixed;
   right: 20px;
-  bottom: calc(env(safe-area-inset-bottom) + 88px);
+  bottom: calc(env(safe-area-inset-bottom) + 72px);
   z-index: 10;
-  /* Slightly thinner padding so the pill hugs the glyph a touch more closely. */
-  padding: 0.75rem;
+  /* Larger tap target than the header buttons, with matching roomier padding. */
+  min-width: 3.5rem;
+  min-height: 3.5rem;
+  padding: 1rem;
 }
 
 /* Enlarge the "+" glyph within this button only. */
 .add-transaction :deep(.icon svg) {
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 2.25rem;
+  height: 2.25rem;
 }
 
 /* Same gutter as the header content, so page bodies align with it. */

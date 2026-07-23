@@ -302,6 +302,7 @@ watch(
   gap: 4px;
   text-decoration: none;
   color: #ffffff;
+  font-family: ui-rounded, 'SF Pro Rounded', system-ui, sans-serif;
   font-size: 11px;
   font-weight: 400;
   /* Links are draggable by default in Safari — long-press lets you drag the

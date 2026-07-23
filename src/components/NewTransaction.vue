@@ -117,61 +117,20 @@ function onButton({ id }) {
   }
 }
 
-// iOS-style large-title collapse, same as the pages but scoped to the modal's
-// own scroll container (the panel) and its static header rather than the window
-// and the fixed header. The in-body <h1> fades out as it scrolls behind the
-// header, and `collapsed` fades the header's own title in.
-const titleRef = ref(null)
-const collapsed = ref(false)
-
-// Coalesce bursts of scroll events into one measurement per frame.
-let frame = 0
 // The modal panel that scrolls, resolved when the sheet opens.
 let scroller = null
-
-function measure() {
-  frame = 0
-  const el = titleRef.value
-  if (!el || !scroller) return
-
-  // The sticky header pins to the top of the panel, so its bottom edge sits at
-  // the panel's top plus the header's height — the strip the title hides behind.
-  const header = scroller.querySelector('header')
-  const headerHeight = header ? header.getBoundingClientRect().height : 0
-  const scrollerTop = scroller.getBoundingClientRect().top
-
-  // Trigger once the <h1>'s vertical center passes behind the header's bottom.
-  const { top, bottom } = el.getBoundingClientRect()
-  collapsed.value = (top + bottom) / 2 <= scrollerTop + headerHeight
-}
-
-function onScroll() {
-  if (frame) return
-  frame = requestAnimationFrame(measure)
-}
 
 watch(
   () => props.open,
   async (isOpen) => {
     if (isOpen) {
-      // Wait for the teleported panel to mount, then bind to its scroll.
+      // Wait for the teleported panel to mount.
       await nextTick()
-      scroller = titleRef.value?.closest('.modal-panel') ?? null
-      collapsed.value = false
+      scroller = document.querySelector('.modal-panel')
       setNow()
       updateIndicator()
-      if (scroller) {
-        scroller.addEventListener('scroll', onScroll, { passive: true })
-        window.addEventListener('resize', onScroll, { passive: true })
-        measure()
-      }
     } else {
-      if (scroller) scroller.removeEventListener('scroll', onScroll)
-      window.removeEventListener('resize', onScroll)
-      if (frame) cancelAnimationFrame(frame)
-      frame = 0
       scroller = null
-      collapsed.value = false
       resetForm()
     }
   },
@@ -182,14 +141,11 @@ watch(
   <TheModal
     :open="open"
     title="New Transaction"
-    :title-visible="collapsed"
     :right-buttons="rightButtons"
     full
     @update:open="emit('update:open', $event)"
     @button-click="onButton"
   >
-    <h1 ref="titleRef" :class="{ collapsed }">New Transaction</h1>
-
     <div class="amount-card">
       <div class="amount-row">
         <span class="amount-sign">{{ amountSign }}$</span>
@@ -248,17 +204,6 @@ watch(
 </template>
 
 <style scoped>
-/* The <h1> keeps its box (so it still scrolls behind the header like a blank
-   div), but its text fades out quickly once collapsed, and back in on return. */
-h1 {
-  margin-top: 0.5rem;
-  transition: opacity 0.1s ease-out;
-}
-
-h1.collapsed {
-  opacity: 0;
-}
-
 .amount-card {
   background-color: var(--surface-1);
   border-radius: 25px;
@@ -292,6 +237,7 @@ h1.collapsed {
   border: none;
   background: transparent;
   color: #ffffff;
+  caret-color: #ffffff;
   font-size: 2.25rem;
   font-weight: 600;
   outline: none;

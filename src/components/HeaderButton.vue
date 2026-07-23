@@ -109,9 +109,15 @@ button {
   display: inline-flex;
 }
 
+/* Tighten the icon button's padding and enlarge the glyph so it fills more of
+   the round button. */
+button:has(.icon) {
+  padding: 0.5rem;
+}
+
 .icon :deep(svg) {
-  width: 1.375rem;
-  height: 1.375rem;
+  width: 1.75rem;
+  height: 1.75rem;
   display: block;
   fill: currentColor;
   transform: translateZ(0);

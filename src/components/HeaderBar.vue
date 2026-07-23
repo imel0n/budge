@@ -38,7 +38,7 @@ defineProps({
   // Placement variant. `fixed` (default) pins the bar to the top of the viewport
   // over the page body, honouring the status-bar safe-area inset and painting a
   // black falloff. `static` drops it into normal flow with no top inset and a
-  // panel-grey falloff — used inside the modal sheet, where it sticks to the top
+  // panel-grey falloff — used inside the modal sheet, where it sits at the top
   // of the panel and content scrolls under it.
   variant: {
     type: String,
@@ -173,13 +173,15 @@ header.fixed {
   );
 }
 
-/* Modal placement: sits in normal flow and sticks to the top of its scroll
-   container (the modal panel) so the sheet's content scrolls under it. No
-   status bar above the sheet, so no top inset. */
+/* Modal placement: sits in normal flow at the top of the (non-scrolling) modal
+   panel; the sheet's scroll container slides its content under it. No status
+   bar above the sheet, so no top inset. */
 header.static {
-  --safe-top: 0px;
-  position: sticky;
-  top: 0;
+  /* Stands in for the sheet's top spacing. Keeping this space in the header
+     (rather than the panel's padding-top) lets the header background reach the
+     very top of the panel instead of leaving a strip above it. */
+  --safe-top: 18px;
+  position: relative;
   z-index: 1;
   /* Solid panel-grey down to the title midpoint, then 32 smoothstep-eased steps
      fading to transparent so content scrolls out under a soft falloff. */
