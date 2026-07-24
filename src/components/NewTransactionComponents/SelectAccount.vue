@@ -8,11 +8,17 @@ function select(account) {
   form.account = account
   pop()
 }
+
+function selectNone() {
+  form.account = ''
+  pop()
+}
 </script>
 
 <template>
   <div>
     <div class="field-card">
+      <SelectionList label="None" type="option" :selected="!form.account" @select="selectNone" />
       <SelectionList
         v-for="account in accounts"
         :key="account"

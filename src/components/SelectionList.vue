@@ -183,7 +183,7 @@ function onRowClick() {
 }
 
 .settings-row.has-icon:not(:first-child)::before {
-  left: 3.6rem;
+  left: 2.6rem;
 }
 
 .settings-icon {
@@ -191,16 +191,27 @@ function onRowClick() {
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 0.75rem;
-  background: rgba(255, 255, 255, 0.08);
+  width: 1.75rem;
+  height: 1.75rem;
+  /* Negative margin keeps this from stretching the row taller than a text-only row. */
+  margin: -0.325rem 0;
+  border-radius: 0.5rem;
+  background: linear-gradient(160deg, #48484a 0%, #232325 55%, #0a0a0b 100%);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.35),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.4);
+  font-size: 1.4rem;
 }
 
 .settings-icon :deep(svg),
 .settings-icon :deep(img) {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1rem;
+  height: 1rem;
+}
+
+.settings-icon :deep(img) {
+  filter: invert(1);
 }
 
 .settings-label {
@@ -261,7 +272,7 @@ function onRowClick() {
   margin: -0.425rem 0;
   padding: 0;
   border: none;
-  border-radius: 999px;
+  border-radius: 25px;
   background: rgba(255, 255, 255, 0.15);
   cursor: pointer;
   transition: background 0.25s ease;

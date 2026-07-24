@@ -10,6 +10,7 @@ import NewAccount from './NewTransactionComponents/NewAccount.vue'
 import NewCategory from './NewTransactionComponents/NewCategory.vue'
 import NewPayee from './NewTransactionComponents/NewPayee.vue'
 import NewLocation from './NewTransactionComponents/NewLocation.vue'
+import { useCategoriesStore } from '../stores/categories'
 
 const props = defineProps({
   open: {
@@ -39,27 +40,23 @@ const types = [
   { id: 'transfer', label: 'Transfer' },
 ]
 
-const categoriesByType = {
-  expense: ['expenseCategory 1', 'expenseCategory 2', 'expenseCategory 3'],
-  income: ['incomeCategory 1', 'incomeCategory 2', 'incomeCategory 3'],
-  transfer: ['transferCategory 1', 'transferCategory 2', 'transferCategory 3'],
-}
-
 const accounts = ['Account 1', 'Account 2', 'Account 3']
-const payees = ['Self', 'Payee 1', 'Payee 2', 'Payee 3']
+const payees = ['Self']
 const repeats = ['Never', 'Daily', 'Weekly', 'Monthly', 'Yearly']
 const locations = {
   saved: [],
   recents: [],
 }
 
-const categories = computed(() => categoriesByType[form.type])
+const categoriesStore = useCategoriesStore()
+const categories = computed(() => categoriesStore.byType[form.type] ?? [])
 
 const stack = ref(['root'])
 const direction = ref('forward')
 const current = computed(() => stack.value[stack.value.length - 1])
 
 const modal = ref(null)
+const viewRef = ref(null)
 let scrollPositions = {}
 
 // The two pages share one scroll container, so restoring the incoming page's
@@ -336,8 +333,12 @@ function onButton({ id }) {
   } else if (id === 'add') {
     push(newViews[current.value])
   } else if (id === 'save') {
-    if (isRoot.value) emit('update:open', false)
-    else pop()
+    if (isRoot.value) {
+      emit('update:open', false)
+      return
+    }
+    if (viewRef.value?.save?.() === false) return
+    pop()
   }
 }
 
@@ -377,7 +378,13 @@ watch(
         <div class="swipe-dim" :style="swipeDimStyle"></div>
       </div>
       <Transition :name="`nav-${direction}`">
-        <component :is="viewComponent" :key="current" :style="swipeCurrentStyle" @transitionend="onSwipeSettled" />
+        <component
+          :is="viewComponent"
+          ref="viewRef"
+          :key="current"
+          :style="swipeCurrentStyle"
+          @transitionend="onSwipeSettled"
+        />
       </Transition>
     </div>
   </TheModal>

@@ -14,6 +14,10 @@ function onAmountInput(e) {
 
 const amountSign = computed(() => (form.type === 'expense' ? '-' : ''))
 
+const categoryOptions = computed(() =>
+  categories.value.map((c) => ({ value: c.id, label: c.name })),
+)
+
 const toggleRef = ref(null)
 const indicatorStyle = ref({})
 
@@ -91,7 +95,7 @@ watch(
         :model-value="form.category"
         label="Category"
         type="nav"
-        :options="categories"
+        :options="categoryOptions"
         @navigate="push('category')"
       />
       <SelectionList
