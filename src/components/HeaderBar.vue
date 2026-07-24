@@ -237,6 +237,9 @@ header.static {
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  /* Keep the bar's height consistent even when a page has no left/right
+     buttons — matches HeaderButton's min-height so it doesn't collapse. */
+  min-height: 2.5rem;
 }
 
 .left-area,

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, inject } from 'vue'
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePageTitle } from '../composables/usePageTitle'
 import { useTransactionsStore } from '../stores/transactions'
@@ -12,21 +12,6 @@ const router = useRouter()
 function viewTransaction(transaction) {
   router.replace({ name: 'transaction', params: { id: transaction.id } })
 }
-
-// Push one left button and two right buttons up to the shared HeaderBar. Each
-// descriptor is { id, label, icon? }: pass `icon` (raw SVG markup) to show a
-// glyph instead of the text `label`. `id` comes back to us on click.
-const setHeaderButtons = inject('setHeaderButtons')
-setHeaderButtons({
-  left: [{ id: 'b1', label: 'B1' }],
-  right: [
-    { id: 'b2', label: 'B2' },
-    { id: 'b3', label: 'B3' },
-  ],
-  onClick: ({ side, id }) => {
-    console.log('Header button clicked:', side, id)
-  },
-})
 
 const transactionsStore = useTransactionsStore()
 const categoriesStore = useCategoriesStore()

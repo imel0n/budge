@@ -1,23 +1,7 @@
 <script setup>
-import { inject } from 'vue'
 import { usePageTitle } from '../composables/usePageTitle'
 
 const { titleRef, collapsed } = usePageTitle('Accounts')
-
-// Push two left buttons and one right button up to the shared HeaderBar. Each
-// descriptor is { id, label, icon? }: pass `icon` (raw SVG markup) to show a
-// glyph instead of the text `label`. `id` comes back to us on click.
-const setHeaderButtons = inject('setHeaderButtons')
-setHeaderButtons({
-  left: [
-    { id: 'a1', label: 'A1' },
-    { id: 'a2', label: 'A2' },
-  ],
-  right: [{ id: 'a3', label: 'A3' }],
-  onClick: ({ side, id }) => {
-    console.log('Header button clicked:', side, id)
-  },
-})
 </script>
 
 <template>
