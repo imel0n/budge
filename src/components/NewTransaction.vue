@@ -18,7 +18,13 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  transaction: {
+    type: Object,
+    default: null,
+  },
 })
+
+const isEdit = computed(() => props.transaction != null)
 
 const emit = defineEmits(['update:open'])
 
@@ -296,7 +302,10 @@ const titles = {
 }
 
 const isRoot = computed(() => current.value === 'root')
-const title = computed(() => titles[current.value] ?? '')
+const title = computed(() => {
+  if (current.value === 'root') return isEdit.value ? 'Edit Transaction' : 'New Transaction'
+  return titles[current.value] ?? ''
+})
 const leftButtons = computed(() => (isRoot.value ? [] : [{ id: 'back', label: 'Back', icon: backIcon }]))
 const rightButtons = computed(() => {
   if (newViews[current.value]) return [{ id: 'add', label: 'Add', icon: addIcon }]
@@ -308,6 +317,23 @@ function setNow() {
   const pad = (n) => String(n).padStart(2, '0')
   form.date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
   form.time = `${pad(now.getHours())}:${pad(now.getMinutes())}`
+}
+
+function populate(t) {
+  const date = new Date(t.timestamp)
+  const pad = (n) => String(n).padStart(2, '0')
+  Object.assign(form, {
+    type: t.type,
+    amount: (t.amount / 100).toFixed(2),
+    account: t.account,
+    category: t.category,
+    payee: t.payee,
+    date: `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
+    time: `${pad(date.getHours())}:${pad(date.getMinutes())}`,
+    repeat: t.repeat,
+    location: Boolean(t.location),
+    selectedLocation: t.selectedLocation ?? '',
+  })
 }
 
 function reset() {
@@ -337,7 +363,8 @@ function onButton({ id }) {
     push(newViews[current.value])
   } else if (id === 'save') {
     if (isRoot.value) {
-      transactionsStore.addTransaction(form)
+      if (isEdit.value) transactionsStore.updateTransaction(props.transaction.id, form)
+      else transactionsStore.addTransaction(form)
       emit('update:open', false)
       return
     }
@@ -349,8 +376,10 @@ function onButton({ id }) {
 watch(
   () => props.open,
   (isOpen) => {
-    if (isOpen) setNow()
-    else reset()
+    if (isOpen) {
+      if (isEdit.value) populate(props.transaction)
+      else setNow()
+    } else reset()
   },
 )
 </script>

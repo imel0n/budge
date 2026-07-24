@@ -51,5 +51,22 @@ export const useTransactionsStore = defineStore('transactions', () => {
     return transaction
   }
 
-  return { items, addTransaction }
+  function updateTransaction(id, { type, amount, account, category, payee, date, time, repeat, location, selectedLocation }) {
+    const transaction = items.find((t) => t.id === id)
+    if (!transaction) return null
+    Object.assign(transaction, {
+      type,
+      amount: Math.round(Number(amount) * 100),
+      account,
+      category,
+      payee,
+      timestamp: new Date(`${date}T${time}`).toISOString(),
+      repeat,
+      location,
+      selectedLocation: location ? selectedLocation : null,
+    })
+    return transaction
+  }
+
+  return { items, addTransaction, updateTransaction }
 })
