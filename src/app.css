@@ -44,3 +44,13 @@ textarea,
   -webkit-user-select: text;
   user-select: text;
 }
+
+/* Hide scrollbars everywhere, on every scrollable element */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}

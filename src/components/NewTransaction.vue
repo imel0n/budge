@@ -11,6 +11,7 @@ import NewCategory from './NewTransactionComponents/NewCategory.vue'
 import NewPayee from './NewTransactionComponents/NewPayee.vue'
 import NewLocation from './NewTransactionComponents/NewLocation.vue'
 import { useCategoriesStore } from '../stores/categories'
+import { useTransactionsStore } from '../stores/transactions'
 
 const props = defineProps({
   open: {
@@ -50,6 +51,8 @@ const locations = {
 
 const categoriesStore = useCategoriesStore()
 const categories = computed(() => categoriesStore.byType[form.type] ?? [])
+
+const transactionsStore = useTransactionsStore()
 
 const stack = ref(['root'])
 const direction = ref('forward')
@@ -334,6 +337,7 @@ function onButton({ id }) {
     push(newViews[current.value])
   } else if (id === 'save') {
     if (isRoot.value) {
+      transactionsStore.addTransaction(form)
       emit('update:open', false)
       return
     }
