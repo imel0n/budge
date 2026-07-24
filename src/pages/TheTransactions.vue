@@ -1,10 +1,17 @@
 <script setup>
 import { computed, inject } from 'vue'
+import { useRouter } from 'vue-router'
 import { usePageTitle } from '../composables/usePageTitle'
 import { useTransactionsStore } from '../stores/transactions'
 import { useCategoriesStore } from '../stores/categories'
 
 const { titleRef, collapsed } = usePageTitle('Transactions')
+
+const router = useRouter()
+
+function viewTransaction(transaction) {
+  router.replace({ name: 'transaction', params: { id: transaction.id } })
+}
 
 // Push one left button and two right buttons up to the shared HeaderBar. Each
 // descriptor is { id, label, icon? }: pass `icon` (raw SVG markup) to show a
@@ -94,6 +101,7 @@ const groups = computed(() => {
           v-for="transaction in group.transactions"
           :key="transaction.id"
           class="transaction-row"
+          @click="viewTransaction(transaction)"
         >
           <span class="transaction-icon">
             <img

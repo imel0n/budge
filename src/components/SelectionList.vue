@@ -29,7 +29,8 @@ const props = defineProps({
     default: null,
   },
   // 'select' picker; 'date'/'time' native inputs; 'toggle' switch; 'nav' emits
-  // `navigate`; 'option' emits `select` and shows a checkmark when `selected`.
+  // `navigate`; 'option' emits `select` and shows a checkmark when `selected`;
+  // 'info' is a static read-only value (no picker, no chevron).
   type: {
     type: String,
     default: 'select',
@@ -98,7 +99,9 @@ function onRowClick() {
         :value="modelValue"
         @input="emit('update:modelValue', $event.target.value)"
       />
-      <span v-else-if="type === 'nav'" class="settings-value">{{ displayLabel }}</span>
+      <span v-else-if="type === 'nav' || type === 'info'" class="settings-value">{{
+        displayLabel
+      }}</span>
       <span
         v-else-if="type === 'option'"
         class="settings-check"

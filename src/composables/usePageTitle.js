@@ -68,8 +68,8 @@ export function usePageTitle(title) {
     window.removeEventListener('scroll', onScroll)
     window.removeEventListener('resize', onScroll)
     if (frame) cancelAnimationFrame(frame)
-    // Leave the shared header title hidden for the next page.
-    setHeaderTitleVisible(false)
+    // The next page's title state is reset by the layout on navigation, so
+    // there's nothing to clean up here.
   })
 
   return { titleRef, collapsed }
