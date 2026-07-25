@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { usePageTitle } from '../composables/usePageTitle'
 import { useTransactionsStore } from '../stores/transactions'
 import { useCategoriesStore } from '../stores/categories'
+import { useAccountsStore } from '../stores/accounts'
 import SelectTransactionPeriod from '../components/SelectTransactionPeriod.vue'
 
 const { titleRef, collapsed } = usePageTitle('Transactions')
@@ -237,6 +238,16 @@ onUnmounted(() => document.removeEventListener('mousedown', onOutsideClick))
 
 const transactionsStore = useTransactionsStore()
 const categoriesStore = useCategoriesStore()
+const accountsStore = useAccountsStore()
+
+const accountsById = computed(() => new Map(accountsStore.items.map((a) => [a.id, a])))
+
+// transaction.account holds an account id; one whose account is gone reads as
+// deleted rather than leaking the raw uuid into the row.
+function accountNameFor(transaction) {
+  if (!transaction.account) return 'No Account'
+  return accountsById.value.get(transaction.account)?.name ?? 'Account Deleted'
+}
 
 const categoriesById = computed(() => {
   const map = new Map()
@@ -258,7 +269,22 @@ function signedAmount(transaction) {
 
 function formatAmount(cents) {
   const sign = cents < 0 ? '-' : '+'
-  return `${sign}$${(Math.abs(cents) / 100).toFixed(2)}`
+  const value = (Math.abs(cents) / 100).toFixed(2)
+
+  let digitCount = 0
+  let truncated = ''
+  for (const char of value) {
+    if (/\d/.test(char)) {
+      if (digitCount === 6) {
+        truncated += '...'
+        break
+      }
+      digitCount++
+    }
+    truncated += char
+  }
+
+  return `${sign}$${truncated}`
 }
 
 function formatTime(timestamp) {
@@ -279,7 +305,7 @@ function formatDay(timestamp) {
 function matchesQuery(transaction, query) {
   const haystack = [
     categoryFor(transaction)?.name,
-    transaction.account,
+    accountsById.value.get(transaction.account)?.name,
     transaction.payee,
     transaction.notes,
     (transaction.amount / 100).toFixed(2),
@@ -363,7 +389,7 @@ const groups = computed(() => {
               <span class="transaction-name">{{
                 categoryFor(transaction)?.name ?? 'Uncategorized'
               }}</span>
-              <span class="transaction-account">{{ transaction.account || 'No Account' }}</span>
+              <span class="transaction-account">{{ accountNameFor(transaction) }}</span>
             </div>
             <div class="transaction-end">
               <span class="transaction-time">{{ formatTime(transaction.timestamp) }}</span>
@@ -553,6 +579,7 @@ h1.collapsed {
 .transaction-end {
   display: flex;
   flex-direction: column;
+  flex: none;
   align-items: flex-end;
   gap: 0.3rem;
   margin-left: auto;
@@ -566,6 +593,7 @@ h1.collapsed {
 .transaction-amount {
   font-size: 0.9rem;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .transaction-amount.negative {

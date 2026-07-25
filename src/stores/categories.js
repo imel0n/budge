@@ -8,17 +8,9 @@ import giftBox from '../assets/icons/categories/gift-box.png'
 import twoArrows from '../assets/icons/categories/two-arrows.png'
 import groceryStore from '../assets/icons/categories/grocery-store.png'
 import ticket from '../assets/icons/categories/ticket.png'
+import { uuid } from '../lib/uuid'
 
 const STORAGE_KEY = 'budge.categories'
-
-// crypto.randomUUID requires a secure context (https/localhost); falls back over LAN http.
-function uuid() {
-  if (crypto.randomUUID) return crypto.randomUUID()
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0
-    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
-  })
-}
 
 const defaults = {
   expense: [

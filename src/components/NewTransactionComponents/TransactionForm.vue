@@ -20,6 +20,13 @@ const categoryOptions = computed(() =>
   categories.value.map((c) => ({ value: c.id, label: c.name })),
 )
 
+// form.account holds an account id; an id with no surviving account reads as
+// deleted rather than leaking the raw uuid into the row.
+const accountLabel = computed(() => {
+  if (!form.account) return ''
+  return accounts.value.find((a) => a.id === form.account)?.name ?? 'Account Deleted'
+})
+
 const toggleRef = ref(null)
 const indicatorStyle = ref({})
 
@@ -87,10 +94,9 @@ watch(
     <h2 class="section-title">Assignment</h2>
     <div class="field-card">
       <SelectionList
-        :model-value="form.account"
+        :model-value="accountLabel"
         label="Account"
         type="nav"
-        :options="accounts"
         @navigate="push('account')"
       />
       <SelectionList

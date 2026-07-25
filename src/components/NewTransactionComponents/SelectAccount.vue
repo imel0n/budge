@@ -4,13 +4,8 @@ import SelectionList from '../SelectionList.vue'
 
 const { form, accounts, pop } = inject('newTransaction')
 
-function select(account) {
-  form.account = account
-  pop()
-}
-
-function selectNone() {
-  form.account = ''
+function select(id) {
+  form.account = id
   pop()
 }
 </script>
@@ -18,14 +13,14 @@ function selectNone() {
 <template>
   <div>
     <div class="field-card">
-      <SelectionList label="None" type="option" :selected="!form.account" @select="selectNone" />
+      <SelectionList label="None" type="option" :selected="!form.account" @select="select('')" />
       <SelectionList
         v-for="account in accounts"
-        :key="account"
-        :label="account"
+        :key="account.id"
+        :label="account.name"
         type="option"
-        :selected="form.account === account"
-        @select="select(account)"
+        :selected="form.account === account.id"
+        @select="select(account.id)"
       />
     </div>
   </div>

@@ -12,6 +12,7 @@ import NewCategory from './NewTransactionComponents/NewCategory.vue'
 import NewPayee from './NewTransactionComponents/NewPayee.vue'
 import NewLocation from './NewTransactionComponents/NewLocation.vue'
 import CreateNote from './NewTransactionComponents/CreateNote.vue'
+import { useAccountsStore } from '../stores/accounts'
 import { useCategoriesStore } from '../stores/categories'
 import { useTransactionsStore } from '../stores/transactions'
 import { useLocationsStore } from '../stores/locations'
@@ -52,7 +53,8 @@ const types = [
   { id: 'transfer', label: 'Transfer' },
 ]
 
-const accounts = ['Account 1', 'Account 2', 'Account 3']
+const accountsStore = useAccountsStore()
+const accounts = computed(() => accountsStore.items)
 const payees = ['Self']
 const repeats = ['Never', 'Daily', 'Weekly', 'Monthly', 'Yearly']
 const locationsStore = useLocationsStore()

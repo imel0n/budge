@@ -218,6 +218,7 @@ function onRowClick() {
 }
 
 .settings-label {
+  flex: none;
   font-size: 1.1rem;
   font-weight: 400;
 }
@@ -227,6 +228,7 @@ function onRowClick() {
   display: flex;
   align-items: center;
   gap: 0.35rem;
+  min-width: 0;
   margin-left: auto;
   color: rgba(255, 255, 255, 0.55);
 }
@@ -241,6 +243,9 @@ function onRowClick() {
 }
 
 .settings-value {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font-size: 1.1rem;
 }
 

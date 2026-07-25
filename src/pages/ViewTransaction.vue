@@ -3,6 +3,7 @@ import { computed, inject, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTransactionsStore } from '../stores/transactions'
 import { useCategoriesStore } from '../stores/categories'
+import { useAccountsStore } from '../stores/accounts'
 import SelectionList from '../components/SelectionList.vue'
 import NewTransaction from '../components/NewTransaction.vue'
 
@@ -36,6 +37,7 @@ setHeaderButtons({
 
 const transactionsStore = useTransactionsStore()
 const categoriesStore = useCategoriesStore()
+const accountsStore = useAccountsStore()
 
 const transaction = computed(() => transactionsStore.items.find((t) => t.id === route.params.id))
 
@@ -79,6 +81,14 @@ const timeText = computed(() => {
 })
 
 const locationText = computed(() => transaction.value.selectedLocation || 'None')
+
+// transaction.account holds an account id; one whose account is gone reads as
+// deleted rather than leaking the raw uuid into the row.
+const accountText = computed(() => {
+  const id = transaction.value?.account
+  if (!id) return 'No Account'
+  return accountsStore.items.find((a) => a.id === id)?.name ?? 'Account Deleted'
+})
 </script>
 
 <template>
@@ -90,12 +100,7 @@ const locationText = computed(() => transaction.value.selectedLocation || 'None'
     </section>
 
     <div class="card">
-      <SelectionList
-        label="Account"
-        type="info"
-        :model-value="transaction.account"
-        placeholder="No Account"
-      />
+      <SelectionList label="Account" type="info" :model-value="accountText" />
       <SelectionList
         label="Category"
         type="info"

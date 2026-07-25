@@ -5,6 +5,7 @@ import HeaderBar from '../components/HeaderBar.vue'
 import HeaderButton from '../components/HeaderButton.vue'
 import TabBar from '../components/TabBar.vue'
 import NewTransaction from '../components/NewTransaction.vue'
+import NewAccount from '../components/NewAccount.vue'
 import TheTransactions from '../pages/TheTransactions.vue'
 
 // Raw SVG for the "+" glyph. It carries no size or fill of its own — HeaderButton
@@ -13,10 +14,20 @@ const plusIcon = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
   <path d="M12 3a1 1 0 0 1 1 1v7h7a1 1 0 1 1 0 2h-7v7a1 1 0 1 1-2 0v-7H4a1 1 0 1 1 0-2h7V4a1 1 0 0 1 1-1z" />
 </svg>`
 
-// The "New Transaction" sheet, opened by the fixed Add Transaction action.
-const newTransactionOpen = ref(false)
-
 const route = useRoute()
+
+// The sheets opened by the fixed "+" action. Which one it opens follows the
+// page underneath: the Accounts page adds accounts, everything else adds
+// transactions.
+const newTransactionOpen = ref(false)
+const newAccountOpen = ref(false)
+
+const onAccountsPage = computed(() => route.name === 'accounts')
+
+function onAdd() {
+  if (onAccountsPage.value) newAccountOpen.value = true
+  else newTransactionOpen.value = true
+}
 
 // Header state is double-buffered: pages write into `pending`, and `header` is
 // what the HeaderBar actually shows. Normally every write commits immediately,
@@ -346,20 +357,21 @@ onMounted(() => {
     </RouterView>
   </main>
 
-  <!-- Fixed "Add Transaction" action, pinned to the bottom-right and lifted
-       above the TabBar so it never overlaps the navigation. Lives in the layout
-       so it persists across pages. -->
+  <!-- Fixed "+" action, pinned to the bottom-right and lifted above the TabBar
+       so it never overlaps the navigation. Lives in the layout so it persists
+       across pages. -->
   <HeaderButton
     v-show="!chromeHidden"
     class="add-transaction"
-    label="Add Transaction"
+    :label="onAccountsPage ? 'Add Account' : 'Add Transaction'"
     :icon="plusIcon"
-    @click="newTransactionOpen = true"
+    @click="onAdd"
   />
   <TabBar v-show="!chromeHidden" />
 
-  <!-- The "New Transaction" sheet, driven by the Add Transaction action. -->
+  <!-- The sheets driven by the "+" action. -->
   <NewTransaction v-model:open="newTransactionOpen" />
+  <NewAccount v-model:open="newAccountOpen" />
 </template>
 
 <style scoped>
