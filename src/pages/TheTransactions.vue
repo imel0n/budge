@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePageTitle } from '../composables/usePageTitle'
 import { useTransactionsStore } from '../stores/transactions'
@@ -12,6 +12,166 @@ const router = useRouter()
 function viewTransaction(transaction) {
   router.replace({ name: 'transaction', params: { id: transaction.id } })
 }
+
+// iOS-style swipe-to-delete: each row tracks its own translateX offset, keyed
+// by transaction id. Horizontal drags reveal the delete action; rows rely on
+// touch-action: pan-y so vertical list scrolling keeps working untouched.
+const DELETE_WIDTH = 88
+const FULL_SWIPE_RATIO = 0.55
+
+const rowX = reactive({})
+const rowWidths = reactive({})
+const draggingId = ref(null)
+
+function xFor(id) {
+  return rowX[id] ?? 0
+}
+
+function deleteActionStyle(id) {
+  return {
+    width: `${Math.max(DELETE_WIDTH, -xFor(id))}px`,
+    transition: draggingId.value === id ? 'none' : 'width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)',
+  }
+}
+
+function isFullSwipe(id) {
+  const width = rowWidths[id]
+  return !!width && -xFor(id) >= width * FULL_SWIPE_RATIO
+}
+
+function closeAll() {
+  for (const id of Object.keys(rowX)) rowX[id] = 0
+}
+
+let dragId = null
+let dragStartX = 0
+let dragStartY = 0
+let dragOriginX = 0
+let dragDeciding = true
+let dragHorizontal = false
+let dragLastX = 0
+let dragLastT = 0
+let dragVelocity = 0
+let dragRowWidth = DELETE_WIDTH
+
+function beginDrag(id, x, y, width) {
+  dragId = id
+  dragStartX = x
+  dragStartY = y
+  dragOriginX = xFor(id)
+  dragDeciding = true
+  dragHorizontal = false
+  dragLastX = x
+  dragLastT = performance.now()
+  dragVelocity = 0
+  dragRowWidth = width || DELETE_WIDTH
+  rowWidths[id] = dragRowWidth
+}
+
+function updateDrag(x, y) {
+  if (dragId === null) return
+  if (dragDeciding) {
+    const dx = x - dragStartX
+    const dy = y - dragStartY
+    if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return
+    dragDeciding = false
+    dragHorizontal = Math.abs(dx) > Math.abs(dy)
+    if (!dragHorizontal) {
+      dragId = null
+      return
+    }
+    for (const id of Object.keys(rowX)) {
+      if (id !== dragId) rowX[id] = 0
+    }
+    draggingId.value = dragId
+  }
+  if (!dragHorizontal) return
+  const now = performance.now()
+  if (now > dragLastT) dragVelocity = (x - dragLastX) / (now - dragLastT)
+  dragLastX = x
+  dragLastT = now
+  const raw = dragOriginX + (x - dragStartX)
+  rowX[dragId] = Math.min(0, Math.max(-dragRowWidth, raw))
+}
+
+function endDrag() {
+  draggingId.value = null
+  if (dragId === null) return
+  const id = dragId
+  const width = dragRowWidth
+  dragId = null
+  if (dragDeciding || !dragHorizontal) return
+  if (-rowX[id] >= width * FULL_SWIPE_RATIO) {
+    rowX[id] = -width
+    setTimeout(() => {
+      transactionsStore.deleteTransaction(id)
+      delete rowX[id]
+      delete rowWidths[id]
+    }, 220)
+    return
+  }
+  const open = dragVelocity < -0.4 || (rowX[id] < -DELETE_WIDTH / 2 && dragVelocity < 0.4)
+  rowX[id] = open ? -DELETE_WIDTH : 0
+}
+
+function onTouchStart(transaction, e) {
+  if (e.touches.length === 1) {
+    beginDrag(
+      transaction.id,
+      e.touches[0].clientX,
+      e.touches[0].clientY,
+      e.currentTarget.getBoundingClientRect().width,
+    )
+  }
+}
+function onTouchMove(e) {
+  updateDrag(e.touches[0].clientX, e.touches[0].clientY)
+}
+function onTouchEnd() {
+  endDrag()
+}
+
+function onBodyMouseMove(e) {
+  updateDrag(e.clientX, e.clientY)
+}
+function onBodyMouseUp() {
+  window.removeEventListener('mousemove', onBodyMouseMove)
+  window.removeEventListener('mouseup', onBodyMouseUp)
+  endDrag()
+}
+function onMouseDown(transaction, e) {
+  if (e.button !== 0) return
+  beginDrag(transaction.id, e.clientX, e.clientY, e.currentTarget.getBoundingClientRect().width)
+  window.addEventListener('mousemove', onBodyMouseMove)
+  window.addEventListener('mouseup', onBodyMouseUp)
+}
+
+function rowStyle(id) {
+  return {
+    transform: `translateX(${xFor(id)}px)`,
+    transition: draggingId.value === id ? 'none' : 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)',
+  }
+}
+
+function onRowClick(transaction) {
+  if (xFor(transaction.id) !== 0) {
+    rowX[transaction.id] = 0
+    return
+  }
+  viewTransaction(transaction)
+}
+
+function deleteTransaction(transaction) {
+  delete rowX[transaction.id]
+  transactionsStore.deleteTransaction(transaction.id)
+}
+
+function onOutsideClick(e) {
+  if (!e.target.closest('.transaction-wrap')) closeAll()
+}
+
+onMounted(() => document.addEventListener('mousedown', onOutsideClick))
+onUnmounted(() => document.removeEventListener('mousedown', onOutsideClick))
 
 const transactionsStore = useTransactionsStore()
 const categoriesStore = useCategoriesStore()
@@ -85,43 +245,72 @@ const groups = computed(() => {
         <div
           v-for="transaction in group.transactions"
           :key="transaction.id"
-          class="transaction-row"
-          @click="viewTransaction(transaction)"
+          class="transaction-wrap"
         >
-          <span class="transaction-icon">
-            <img
-              v-if="categoryFor(transaction)?.icon"
-              :src="categoryFor(transaction).icon"
-              alt=""
-            />
-          </span>
-          <div class="transaction-main">
-            <span class="transaction-name">{{
-              categoryFor(transaction)?.name ?? 'Uncategorized'
-            }}</span>
-            <span class="transaction-account">{{ transaction.account || 'No Account' }}</span>
-          </div>
-          <div class="transaction-end">
-            <span class="transaction-time">{{ formatTime(transaction.timestamp) }}</span>
-            <span
-              class="transaction-amount"
-              :class="{
-                negative: signedAmount(transaction) < 0,
-                positive: signedAmount(transaction) > 0,
-              }"
-            >
-              {{ formatAmount(signedAmount(transaction)) }}
+          <button
+            class="delete-action"
+            :style="deleteActionStyle(transaction.id)"
+            aria-label="Delete transaction"
+            @click="deleteTransaction(transaction)"
+          >
+            <span class="delete-pill" :class="{ expanded: isFullSwipe(transaction.id) }">
+              <svg class="delete-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M4 7h16M9 7V4h6v3M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13M10 11v6M14 11v6"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
             </span>
+          </button>
+
+          <div
+            class="transaction-row"
+            :style="rowStyle(transaction.id)"
+            @click="onRowClick(transaction)"
+            @touchstart="onTouchStart(transaction, $event)"
+            @touchmove="onTouchMove"
+            @touchend="onTouchEnd"
+            @touchcancel="onTouchEnd"
+            @mousedown="onMouseDown(transaction, $event)"
+          >
+            <span class="transaction-icon">
+              <img
+                v-if="categoryFor(transaction)?.icon"
+                :src="categoryFor(transaction).icon"
+                alt=""
+              />
+            </span>
+            <div class="transaction-main">
+              <span class="transaction-name">{{
+                categoryFor(transaction)?.name ?? 'Uncategorized'
+              }}</span>
+              <span class="transaction-account">{{ transaction.account || 'No Account' }}</span>
+            </div>
+            <div class="transaction-end">
+              <span class="transaction-time">{{ formatTime(transaction.timestamp) }}</span>
+              <span
+                class="transaction-amount"
+                :class="{
+                  negative: signedAmount(transaction) < 0,
+                  positive: signedAmount(transaction) > 0,
+                }"
+              >
+                {{ formatAmount(signedAmount(transaction)) }}
+              </span>
+            </div>
+            <svg class="chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M9 6l6 6-6 6"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
           </div>
-          <svg class="chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-              d="M9 6l6 6-6 6"
-              stroke="currentColor"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
         </div>
       </div>
 
@@ -159,25 +348,89 @@ h1.collapsed {
 .day-card {
   background-color: rgba(255, 255, 255, 0.09);
   border-radius: 25px;
-  padding: 0 1.25rem;
+  overflow: hidden;
+}
+
+.transaction-wrap {
+  position: relative;
+}
+
+.transaction-wrap:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 1.25rem;
+  right: 0;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  z-index: 1;
+}
+
+.delete-action {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: #000000;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.delete-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border-radius: 999px;
+
+  background-color: rgba(255, 69, 58, 0.85);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #fff;
+
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+
+  transition:
+    width 0.2s ease,
+    height 0.2s ease,
+    border-radius 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.delete-pill.expanded {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  background-color: rgba(255, 69, 58, 1);
+  border-color: transparent;
+}
+
+.delete-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  fill: none;
 }
 
 .transaction-row {
   position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 0.85rem;
-  padding: 0.55rem 0;
-}
-
-.transaction-row:not(:first-child)::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: -1.25rem;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.1);
+  padding: 0.55rem 1.25rem;
+  background-color: rgb(23, 23, 23);
+  touch-action: pan-y;
 }
 
 .transaction-icon {

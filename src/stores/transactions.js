@@ -68,5 +68,10 @@ export const useTransactionsStore = defineStore('transactions', () => {
     return transaction
   }
 
-  return { items, addTransaction, updateTransaction }
+  function deleteTransaction(id) {
+    const index = items.findIndex((t) => t.id === id)
+    if (index !== -1) items.splice(index, 1)
+  }
+
+  return { items, addTransaction, updateTransaction, deleteTransaction }
 })
