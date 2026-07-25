@@ -1,4 +1,5 @@
 <script setup>
+import { nextTick, ref, watch } from 'vue'
 import HeaderButton from './HeaderButton.vue'
 import HeaderButtonGroup from './HeaderButtonGroup.vue'
 
@@ -6,7 +7,7 @@ import HeaderButtonGroup from './HeaderButtonGroup.vue'
 // When `icon` (raw SVG markup) is present it's shown instead of the text, and
 // `label` becomes the button's accessible name. `id` is sent back to the parent
 // on click so it knows which button fired.
-defineProps({
+const props = defineProps({
   title: {
     type: String,
     default: '',
@@ -45,53 +46,129 @@ defineProps({
     default: 'fixed',
     validator: (v) => ['fixed', 'static'].includes(v),
   },
+  // Search mode: `{ active, placeholder? }`. While active the whole normal
+  // header (title and both button groups) cross-fades out and a search field
+  // plus a close button take its place. The flag is owned by the page, so
+  // closing round-trips back through `search-close`.
+  search: {
+    type: Object,
+    default: null,
+  },
 })
 
-// Fires when any button is clicked, telling the parent which side and which id.
-const emit = defineEmits(['button-click'])
+// `button-click` tells the parent which side and which id was clicked;
+// `search-input` reports every keystroke in search mode, and `search-close`
+// asks the page to leave it.
+const emit = defineEmits(['button-click', 'search-input', 'search-close'])
 
 function onButtonClick(side, id) {
   emit('button-click', { side, id })
+}
+
+const closeIcon = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <path d="M6.4 5a1 1 0 0 0-.7 1.7l5.3 5.3-5.3 5.3a1 1 0 0 0 1.4 1.4l5.3-5.3 5.3 5.3a1 1 0 0 0 1.4-1.4L13.8 12l5.3-5.3a1 1 0 0 0-1.4-1.4L12.4 10.6 7.1 5.3A1 1 0 0 0 6.4 5z" />
+</svg>`
+
+// The query lives here rather than being passed back down as a prop, so typing
+// never round-trips through the page. It resets whenever search mode opens.
+const query = ref('')
+const inputEl = ref(null)
+
+watch(
+  () => props.search?.active,
+  (active) => {
+    if (!active) return
+    query.value = ''
+    nextTick(() => inputEl.value?.focus())
+  },
+)
+
+function onInput() {
+  emit('search-input', query.value)
+}
+
+function closeSearch() {
+  emit('search-input', '')
+  emit('search-close')
 }
 </script>
 
 <template>
   <header :class="variant">
-    <!-- Keyed on the route so the whole header (title + buttons) cross-fades
-         out and back in when the page changes. -->
-    <Transition name="header-fade" mode="out-in">
-      <div class="header-content" :key="transitionKey">
-        <div class="left-area">
-          <HeaderButtonGroup
-            v-if="leftButtons.length === 2"
-            :buttons="leftButtons"
-            @button-click="onButtonClick('left', $event)"
-          />
-          <HeaderButton
-            v-else-if="leftButtons.length === 1"
-            :label="leftButtons[0].label"
-            :icon="leftButtons[0].icon"
-            @click="onButtonClick('left', leftButtons[0].id)"
-          />
-        </div>
+    <!-- Normal header and search bar share one grid cell, so entering and
+         leaving search mode is a true overlapping cross-fade instead of a
+         swap that reflows the bar. -->
+    <div class="header-stack">
+      <Transition name="search-swap">
+        <div v-if="!search?.active" class="stack-cell">
+          <!-- Keyed on the route so the whole header (title + buttons)
+               cross-fades out and back in when the page changes. -->
+          <Transition name="header-fade" mode="out-in">
+            <div class="header-content" :key="transitionKey">
+              <div class="left-area">
+                <HeaderButtonGroup
+                  v-if="leftButtons.length === 2"
+                  :buttons="leftButtons"
+                  @button-click="onButtonClick('left', $event)"
+                />
+                <HeaderButton
+                  v-else-if="leftButtons.length === 1"
+                  :label="leftButtons[0].label"
+                  :icon="leftButtons[0].icon"
+                  @click="onButtonClick('left', leftButtons[0].id)"
+                />
+              </div>
 
-        <h3 class="title" :class="{ visible: titleVisible }">{{ title }}</h3>
+              <h3 class="title" :class="{ visible: titleVisible }">{{ title }}</h3>
 
-        <div class="right-area">
-          <HeaderButtonGroup
-            v-if="rightButtons.length === 2"
-            :buttons="rightButtons"
-            @button-click="onButtonClick('right', $event)"
-          />
-          <HeaderButton
-            v-else-if="rightButtons.length === 1"
-            :label="rightButtons[0].label"
-            :icon="rightButtons[0].icon"
-            @click="onButtonClick('right', rightButtons[0].id)"
-          />
+              <div class="right-area">
+                <HeaderButtonGroup
+                  v-if="rightButtons.length === 2"
+                  :buttons="rightButtons"
+                  @button-click="onButtonClick('right', $event)"
+                />
+                <HeaderButton
+                  v-else-if="rightButtons.length === 1"
+                  :label="rightButtons[0].label"
+                  :icon="rightButtons[0].icon"
+                  @click="onButtonClick('right', rightButtons[0].id)"
+                />
+              </div>
+            </div>
+          </Transition>
         </div>
-      </div>
-    </Transition>
+      </Transition>
+
+      <Transition name="search-swap">
+        <div v-if="search?.active" class="stack-cell search-content">
+          <label class="search-field">
+            <span class="search-glyph" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <circle cx="10" cy="10" r="6.5" stroke="currentColor" stroke-width="2" />
+                <path
+                  d="M21 21l-6-6"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </span>
+            <input
+              ref="inputEl"
+              v-model="query"
+              type="search"
+              enterkeyhint="search"
+              autocomplete="off"
+              :placeholder="search.placeholder || 'Search'"
+              aria-label="Search"
+              @input="onInput"
+              @keydown.esc="closeSearch"
+            />
+          </label>
+          <HeaderButton label="Close search" :icon="closeIcon" @click="closeSearch" />
+        </div>
+      </Transition>
+    </div>
   </header>
 </template>
 
@@ -230,6 +307,17 @@ header.static {
   );
 }
 
+/* Stacks the normal header and the search bar in a single grid cell so both can
+   be on screen mid-cross-fade without either leaving flow — which keeps the
+   bar's height steady and leaves `header` as the .title's positioning ancestor. */
+.header-stack {
+  display: grid;
+}
+
+.stack-cell {
+  grid-area: 1 / 1;
+}
+
 /* The keyed wrapper that cross-fades on navigation. It carries the flex layout
    so the header shell (gradient + padding) stays put while its content swaps. */
 .header-content {
@@ -273,6 +361,89 @@ header.static {
 .header-fade-leave-to .left-area,
 .header-fade-leave-to .right-area {
   transform: scale(0.95);
+}
+
+.search-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+}
+
+/* Same liquid-glass treatment as the header buttons, stretched into a field. */
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+  min-height: 2.5rem;
+  padding: 0 0.9rem;
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.search-glyph {
+  display: inline-flex;
+  flex: none;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.search-glyph svg {
+  width: 1.125rem;
+  height: 1.125rem;
+  display: block;
+}
+
+.search-field input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font: inherit;
+  font-size: 1.0625rem;
+  line-height: 1;
+  /* Strip the WebKit search affordances so the field reads as a plain pill. */
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.search-field input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.search-field input::-webkit-search-cancel-button {
+  display: none;
+}
+
+/* Entering and leaving search mode: the two stacked layers cross-fade through
+   each other, each scaling slightly around its own centre so the swap has a
+   little depth rather than reading as a hard dissolve. */
+.search-swap-enter-active,
+.search-swap-leave-active {
+  transition:
+    opacity 0.28s ease,
+    transform 0.28s ease;
+}
+
+.search-swap-enter-from,
+.search-swap-leave-to {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+/* The outgoing layer is still painted on top of its own grid cell, so keep it
+   from swallowing taps meant for the incoming one. */
+.search-swap-leave-active {
+  pointer-events: none;
 }
 
 .title {

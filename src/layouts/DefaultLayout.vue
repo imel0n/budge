@@ -27,7 +27,10 @@ const pending = {
   titleVisible: false,
   left: [],
   right: [],
+  search: null,
   onClick: () => {},
+  onSearchInput: () => {},
+  onSearchClose: () => {},
 }
 
 const header = ref({ ...pending, key: route.path })
@@ -66,10 +69,20 @@ function setHeaderTitleVisible(visible) {
 
 provide('setHeaderTitleVisible', setHeaderTitleVisible)
 
-function setHeaderButtons({ left = [], right = [], onClick = () => {} } = {}) {
+function setHeaderButtons({
+  left = [],
+  right = [],
+  search = null,
+  onClick = () => {},
+  onSearchInput = () => {},
+  onSearchClose = () => {},
+} = {}) {
   pending.left = left
   pending.right = right
+  pending.search = search
   pending.onClick = onClick
+  pending.onSearchInput = onSearchInput
+  pending.onSearchClose = onSearchClose
   if (!deferHeader) applyHeader()
 }
 
@@ -103,7 +116,10 @@ watch(
     pending.titleVisible = false
     pending.left = []
     pending.right = []
+    pending.search = null
     pending.onClick = () => {}
+    pending.onSearchInput = () => {}
+    pending.onSearchClose = () => {}
     if (!deferHeader) applyHeader()
   },
 )
@@ -296,7 +312,10 @@ onMounted(() => {
     :left-buttons="header.left"
     :right-buttons="header.right"
     :transition-key="header.key"
+    :search="header.search"
     @button-click="header.onClick($event)"
+    @search-input="header.onSearchInput($event)"
+    @search-close="header.onSearchClose()"
   />
   <main
     ref="bodyEl"

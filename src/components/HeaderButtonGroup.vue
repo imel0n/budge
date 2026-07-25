@@ -137,6 +137,13 @@ button {
   z-index: 1;
 }
 
+/* Icon segments only need enough vertical padding to hit the tap target height;
+   the label's line-height doesn't apply, so the full 0.85rem reads as excess. */
+button:has(.icon) {
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
+}
+
 /* Inline SVG icons are sized to a consistent glyph box and inherit the segment's
    colour, so icons can be authored without their own dimensions or fills. */
 .icon {

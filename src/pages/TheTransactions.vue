@@ -1,5 +1,5 @@
 <script setup>
-import { computed, inject, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, inject, onMounted, onUnmounted, reactive, ref, watchEffect } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePageTitle } from '../composables/usePageTitle'
 import { useTransactionsStore } from '../stores/transactions'
@@ -14,6 +14,17 @@ const setHeaderButtons = inject('setHeaderButtons')
 
 const periodOpen = ref(false)
 const period = ref('month')
+
+const searchIcon = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="2" />
+  <path d="M21 21l-6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+</svg>`
+
+const ellipsisIcon = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="5" cy="12" r="2" />
+  <circle cx="12" cy="12" r="2" />
+  <circle cx="19" cy="12" r="2" />
+</svg>`
 
 function weekNumber(date) {
   const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
@@ -32,18 +43,32 @@ const periodLabel = computed(() => {
   return `${now.toLocaleDateString(undefined, { month: 'long' })} ${now.getFullYear()}`
 })
 
-watch(
-  periodLabel,
-  (label) => {
-    setHeaderButtons({
-      left: [{ id: 'period', label }],
-      onClick: ({ id }) => {
-        if (id === 'period') periodOpen.value = true
-      },
-    })
-  },
-  { immediate: true },
-)
+// Search mode is owned here and handed to the header, which cross-fades its own
+// content out and a search field in. The query comes back on every keystroke.
+const searchOpen = ref(false)
+const searchQuery = ref('')
+
+watchEffect(() => {
+  setHeaderButtons({
+    left: [{ id: 'period', label: periodLabel.value }],
+    right: [
+      { id: 'search', label: 'Search', icon: searchIcon },
+      { id: 'more', label: 'More', icon: ellipsisIcon },
+    ],
+    search: searchOpen.value ? { active: true, placeholder: 'Search transactions' } : null,
+    onClick: ({ id }) => {
+      if (id === 'period') periodOpen.value = true
+      else if (id === 'search') searchOpen.value = true
+    },
+    onSearchInput: (query) => {
+      searchQuery.value = query
+    },
+    onSearchClose: () => {
+      searchOpen.value = false
+      searchQuery.value = ''
+    },
+  })
+})
 
 function viewTransaction(transaction) {
   router.replace({ name: 'transaction', params: { id: transaction.id } })
@@ -66,6 +91,7 @@ function xFor(id) {
 function deleteActionStyle(id) {
   return {
     width: `${Math.max(DELETE_WIDTH, -xFor(id))}px`,
+    visibility: xFor(id) === 0 && draggingId.value !== id ? 'hidden' : 'visible',
     transition: draggingId.value === id ? 'none' : 'width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)',
   }
 }
@@ -250,10 +276,24 @@ function formatDay(timestamp) {
   })
 }
 
+function matchesQuery(transaction, query) {
+  const haystack = [
+    categoryFor(transaction)?.name,
+    transaction.account,
+    transaction.payee,
+    transaction.notes,
+    (transaction.amount / 100).toFixed(2),
+  ]
+  return haystack.some((field) => field?.toLowerCase().includes(query))
+}
+
 const groups = computed(() => {
-  const sorted = [...transactionsStore.items].sort(
-    (a, b) => new Date(b.timestamp) - new Date(a.timestamp),
-  )
+  const query = searchQuery.value.trim().toLowerCase()
+  const matching = query
+    ? transactionsStore.items.filter((t) => matchesQuery(t, query))
+    : transactionsStore.items
+
+  const sorted = [...matching].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
 
   const byDay = new Map()
   for (const transaction of sorted) {
@@ -393,15 +433,16 @@ h1.collapsed {
   position: relative;
 }
 
-.transaction-wrap:not(:first-child)::before {
+/* Inset divider: starts at the name (past the icon), runs to the edge. Lives on
+   the row so it travels with a swipe instead of sitting under the delete action. */
+.transaction-wrap:not(:first-child) .transaction-row::before {
   content: '';
   position: absolute;
   top: 0;
-  left: 1.25rem;
+  left: 4.35rem;
   right: 0;
   height: 1px;
   background: rgba(255, 255, 255, 0.1);
-  z-index: 1;
 }
 
 .delete-action {
@@ -467,7 +508,7 @@ h1.collapsed {
   align-items: center;
   gap: 0.85rem;
   padding: 0.55rem 1.25rem;
-  background-color: rgb(23, 23, 23);
+  background-color: rgb(34, 34, 34);
   touch-action: pan-y;
 }
 
@@ -476,9 +517,9 @@ h1.collapsed {
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 0.75rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.65rem;
   background: linear-gradient(160deg, #48484a 0%, #232325 55%, #0a0a0b 100%);
   box-shadow:
     inset 0 1px 1px rgba(255, 255, 255, 0.35),
@@ -487,8 +528,8 @@ h1.collapsed {
 }
 
 .transaction-icon img {
-  width: 1.2rem;
-  height: 1.2rem;
+  width: 1.05rem;
+  height: 1.05rem;
   object-fit: contain;
   filter: invert(1);
 }
@@ -500,7 +541,7 @@ h1.collapsed {
 }
 
 .transaction-name {
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   font-weight: 500;
 }
 
@@ -525,18 +566,14 @@ h1.collapsed {
 .transaction-amount {
   font-size: 0.9rem;
   font-weight: 600;
-  padding: 0.15rem 0.6rem;
-  border-radius: 999px;
 }
 
 .transaction-amount.negative {
   color: #ff8a8a;
-  background: rgba(255, 69, 58, 0.18);
 }
 
 .transaction-amount.positive {
   color: #7ee08a;
-  background: rgba(52, 199, 89, 0.18);
 }
 
 .chevron {
