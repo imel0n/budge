@@ -9,6 +9,9 @@
 
     <!-- PWA / theming -->
     <meta name="theme-color" content="#111111">
+    <!-- Paint black immediately, before the external stylesheet loads, to avoid
+         a white flash on cold PWA launch. -->
+    <style>html,body{background-color:#000}</style>
     <meta name="description" content="Personal budgeting, made simple.">
 
     <!-- iOS: Safari ignores much of the manifest, so these are still needed -->
