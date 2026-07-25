@@ -111,7 +111,13 @@ watch(
     <div class="field-card">
       <SelectionList v-model="form.date" label="Date" type="date" />
       <SelectionList v-model="form.time" label="Time" type="time" />
-      <SelectionList v-model="form.repeat" label="Repeat" :options="repeats" />
+      <SelectionList
+        :model-value="form.repeat"
+        label="Repeat"
+        type="nav"
+        :options="repeats"
+        @navigate="push('repeat')"
+      />
     </div>
 
     <h2 class="section-title">Location</h2>

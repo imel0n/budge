@@ -4,6 +4,7 @@ import TheModal from './TheModal.vue'
 import TransactionForm from './NewTransactionComponents/TransactionForm.vue'
 import SelectAccount from './NewTransactionComponents/SelectAccount.vue'
 import SelectCategory from './NewTransactionComponents/SelectCategory.vue'
+import SelectRepeat from './NewTransactionComponents/SelectRepeat.vue'
 import SelectPayee from './NewTransactionComponents/SelectPayee.vue'
 import SelectLocation from './NewTransactionComponents/SelectLocation.vue'
 import NewAccount from './NewTransactionComponents/NewAccount.vue'
@@ -12,6 +13,8 @@ import NewPayee from './NewTransactionComponents/NewPayee.vue'
 import NewLocation from './NewTransactionComponents/NewLocation.vue'
 import { useCategoriesStore } from '../stores/categories'
 import { useTransactionsStore } from '../stores/transactions'
+import { useLocationsStore } from '../stores/locations'
+import { getCurrentPosition, reverseGeocode } from '../lib/geocode'
 
 const props = defineProps({
   open: {
@@ -36,8 +39,8 @@ const form = reactive({
   payee: 'Self',
   date: '',
   time: '',
-  repeat: '',
-  location: false,
+  repeat: 'Never',
+  location: true,
   selectedLocation: '',
 })
 
@@ -50,10 +53,11 @@ const types = [
 const accounts = ['Account 1', 'Account 2', 'Account 3']
 const payees = ['Self']
 const repeats = ['Never', 'Daily', 'Weekly', 'Monthly', 'Yearly']
-const locations = {
-  saved: [],
+const locationsStore = useLocationsStore()
+const locations = reactive({
+  saved: locationsStore.saved,
   recents: [],
-}
+})
 
 const categoriesStore = useCategoriesStore()
 const categories = computed(() => categoriesStore.byType[form.type] ?? [])
@@ -111,6 +115,7 @@ provide('newTransaction', {
 const views = {
   account: SelectAccount,
   category: SelectCategory,
+  repeat: SelectRepeat,
   payee: SelectPayee,
   location: SelectLocation,
   newAccount: NewAccount,
@@ -293,6 +298,7 @@ const titles = {
   root: 'New Transaction',
   account: 'Select Account',
   category: 'Select Category',
+  repeat: 'Select Repeat',
   payee: 'Select Payee',
   location: 'Select Location',
   newAccount: 'New Account',
@@ -317,6 +323,18 @@ function setNow() {
   const pad = (n) => String(n).padStart(2, '0')
   form.date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
   form.time = `${pad(now.getHours())}:${pad(now.getMinutes())}`
+}
+
+// Best-effort: silently leaves the field blank for the user to fill in
+// manually if permission is denied or the lookup fails.
+async function autoLocate() {
+  try {
+    const coords = await getCurrentPosition()
+    const place = await reverseGeocode(coords.latitude, coords.longitude)
+    if (place) form.selectedLocation = place.name
+  } catch {
+    // ignored
+  }
 }
 
 function populate(t) {
@@ -345,8 +363,8 @@ function reset() {
     payee: 'Self',
     date: '',
     time: '',
-    repeat: '',
-    location: false,
+    repeat: 'Never',
+    location: true,
     selectedLocation: '',
   })
   stack.value = ['root']
@@ -378,7 +396,10 @@ watch(
   (isOpen) => {
     if (isOpen) {
       if (isEdit.value) populate(props.transaction)
-      else setNow()
+      else {
+        setNow()
+        autoLocate()
+      }
     } else reset()
   },
 )

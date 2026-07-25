@@ -1,5 +1,5 @@
 <script setup>
-import { computed, inject, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { getCurrentPosition, reverseGeocode, searchLocations } from '../../lib/geocode'
 
 const { form, locations, pop } = inject('newTransaction')
@@ -9,9 +9,7 @@ const query = ref('')
 function match(list) {
   const q = query.value.trim().toLowerCase()
   if (!q) return list
-  return list.filter(
-    (l) => l.name.toLowerCase().includes(q) || l.address.toLowerCase().includes(q),
-  )
+  return list.filter((l) => l.name.toLowerCase().includes(q) || l.address.toLowerCase().includes(q))
 }
 
 const saved = computed(() => match(locations.saved))
@@ -22,28 +20,50 @@ function select(location) {
   pop()
 }
 
+function isSaved(location) {
+  return locations.saved.some((l) => l.name === location.name)
+}
+
+function toggleSaved(location) {
+  const i = locations.saved.findIndex((l) => l.name === location.name)
+  if (i === -1) locations.saved.push({ name: location.name, address: location.address })
+  else locations.saved.splice(i, 1)
+}
+
 // Bias search results toward the user's position once they've resolved it.
 const userCoords = ref(null)
 
+const currentPlace = ref(null)
 const locating = ref(false)
 const locateError = ref('')
 
-async function useCurrentLocation() {
-  if (locating.value) return
+async function locateCurrentPlace() {
+  if (locating.value) return null
   locating.value = true
   locateError.value = ''
   try {
     const coords = await getCurrentPosition()
     userCoords.value = { lat: coords.latitude, lon: coords.longitude }
     const place = await reverseGeocode(coords.latitude, coords.longitude)
-    if (place) select(place)
+    if (place) currentPlace.value = place
     else locateError.value = 'Could not resolve your location'
+    return place
   } catch (e) {
     locateError.value = e.code === 1 ? 'Location permission denied' : 'Could not get your location'
+    return null
   } finally {
     locating.value = false
   }
 }
+
+async function useCurrentLocation() {
+  const place = currentPlace.value ?? (await locateCurrentPlace())
+  if (place) select(place)
+}
+
+onMounted(() => {
+  locateCurrentPlace()
+})
 
 const results = ref([])
 const searching = ref(false)
@@ -93,51 +113,108 @@ onBeforeUnmount(() => {
   <div>
     <div class="search-bar">
       <svg class="search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" />
-        <path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        <circle cx="10" cy="10" r="6.5" stroke="white" stroke-width="2" />
+        <path d="M21 21l-6-6" stroke="white" stroke-width="2" stroke-linecap="round" />
       </svg>
       <input v-model="query" class="search-input" type="text" placeholder="Enter Location" />
     </div>
 
     <div class="section-label">Current Location</div>
     <div class="list keep-separator">
-      <button class="row" :disabled="locating" @click="useCurrentLocation">
-        <span class="row-name">Current Location</span>
-        <span class="row-address">
-          {{ locating ? 'Locating…' : locateError || 'Use my current location' }}
-        </span>
-      </button>
+      <div class="row">
+        <button class="row-main" :disabled="locating" @click="useCurrentLocation">
+          <span class="row-name">{{ currentPlace?.name || 'Current Location' }}</span>
+          <span class="row-address">
+            {{
+              locating
+                ? 'Locating…'
+                : locateError || currentPlace?.address || 'Use my current location'
+            }}
+          </span>
+        </button>
+        <button
+          v-if="currentPlace"
+          type="button"
+          class="save-btn"
+          :aria-label="isSaved(currentPlace) ? 'Unsave location' : 'Save location'"
+          @click="toggleSaved(currentPlace)"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M7 4h10a1 1 0 0 1 1 1v15l-6-3.5L6 20V5a1 1 0 0 1 1-1z"
+              :fill="isSaved(currentPlace) ? 'currentColor' : 'none'"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+      </div>
     </div>
 
     <template v-if="saved.length">
       <div class="section-label">Saved</div>
       <div class="list keep-separator">
-        <button
+        <div
           v-for="location in saved"
           :key="location.name"
           class="row"
           :class="{ selected: form.selectedLocation === location.name }"
-          @click="select(location)"
         >
-          <span class="row-name">{{ location.name }}</span>
-          <span class="row-address">{{ location.address }}</span>
-        </button>
+          <button class="row-main" @click="select(location)">
+            <span class="row-name">{{ location.name }}</span>
+            <span class="row-address">{{ location.address }}</span>
+          </button>
+          <button
+            type="button"
+            class="save-btn"
+            :aria-label="isSaved(location) ? 'Unsave location' : 'Save location'"
+            @click="toggleSaved(location)"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M7 4h10a1 1 0 0 1 1 1v15l-6-3.5L6 20V5a1 1 0 0 1 1-1z"
+                :fill="isSaved(location) ? 'currentColor' : 'none'"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
     </template>
 
     <template v-if="recents.length">
       <div class="section-label">Recents</div>
       <div class="list">
-        <button
+        <div
           v-for="location in recents"
           :key="location.name"
           class="row"
           :class="{ selected: form.selectedLocation === location.name }"
-          @click="select(location)"
         >
-          <span class="row-name">{{ location.name }}</span>
-          <span class="row-address">{{ location.address }}</span>
-        </button>
+          <button class="row-main" @click="select(location)">
+            <span class="row-name">{{ location.name }}</span>
+            <span class="row-address">{{ location.address }}</span>
+          </button>
+          <button
+            type="button"
+            class="save-btn"
+            :aria-label="isSaved(location) ? 'Unsave location' : 'Save location'"
+            @click="toggleSaved(location)"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M7 4h10a1 1 0 0 1 1 1v15l-6-3.5L6 20V5a1 1 0 0 1 1-1z"
+                :fill="isSaved(location) ? 'currentColor' : 'none'"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
     </template>
 
@@ -147,16 +224,33 @@ onBeforeUnmount(() => {
       <div v-else-if="searchError" class="hint">{{ searchError }}</div>
       <div v-else-if="!results.length" class="hint">No matches found</div>
       <div v-else class="list">
-        <button
+        <div
           v-for="location in results"
           :key="location.key"
           class="row"
           :class="{ selected: form.selectedLocation === location.name }"
-          @click="select(location)"
         >
-          <span class="row-name">{{ location.name }}</span>
-          <span class="row-address">{{ location.address }}</span>
-        </button>
+          <button class="row-main" @click="select(location)">
+            <span class="row-name">{{ location.name }}</span>
+            <span class="row-address">{{ location.address }}</span>
+          </button>
+          <button
+            type="button"
+            class="save-btn"
+            :aria-label="isSaved(location) ? 'Unsave location' : 'Save location'"
+            @click="toggleSaved(location)"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M7 4h10a1 1 0 0 1 1 1v15l-6-3.5L6 20V5a1 1 0 0 1 1-1z"
+                :fill="isSaved(location) ? 'currentColor' : 'none'"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
     </template>
   </div>
@@ -189,6 +283,7 @@ onBeforeUnmount(() => {
   caret-color: #ffffff;
   font-family: inherit;
   font-size: 1.1rem;
+  font-weight: 500;
   outline: none;
   padding: 0;
 }
@@ -211,14 +306,10 @@ onBeforeUnmount(() => {
 
 .row {
   display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
+  align-items: center;
+  gap: 0.5rem;
   width: 100%;
-  border: none;
-  background: transparent;
-  text-align: left;
   padding: 0.5rem 0;
-  cursor: pointer;
   border-bottom: 0.5px solid rgba(255, 255, 255, 0.12);
 }
 
@@ -228,6 +319,19 @@ onBeforeUnmount(() => {
 
 .list.keep-separator .row:last-child {
   border-bottom: 0.5px solid rgba(255, 255, 255, 0.12);
+}
+
+.row-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 0.1rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
 }
 
 .row-name {
@@ -244,8 +348,33 @@ onBeforeUnmount(() => {
   color: var(--accent, #3b82f6);
 }
 
-.row:disabled {
+.row-main:disabled {
   cursor: default;
+}
+
+.save-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  padding: 0.25rem;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.save-btn:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.save-btn svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.save-btn svg path[fill='currentColor'] {
+  color: #ffffff;
 }
 
 .hint {
