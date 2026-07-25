@@ -1,10 +1,46 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, inject, ref, watchEffect } from 'vue'
 import { usePageTitle } from '../composables/usePageTitle'
 import { useAccountsStore, accountTypes } from '../stores/accounts'
 import { useTransactionsStore } from '../stores/transactions'
 
 const { titleRef, collapsed } = usePageTitle('Accounts')
+
+const setHeaderButtons = inject('setHeaderButtons')
+
+const searchIcon = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="2" />
+  <path d="M21 21l-6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+</svg>`
+
+const ellipsisIcon = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="5" cy="12" r="2" />
+  <circle cx="12" cy="12" r="2" />
+  <circle cx="19" cy="12" r="2" />
+</svg>`
+
+const searchOpen = ref(false)
+const searchQuery = ref('')
+
+watchEffect(() => {
+  setHeaderButtons({
+    right: [
+      { id: 'search', label: 'Search', icon: searchIcon },
+      { id: 'more', label: 'More', icon: ellipsisIcon },
+    ],
+    search: searchOpen.value ? { active: true, placeholder: 'Search accounts' } : null,
+    onClick: ({ id }) => {
+      if (id === 'search') searchOpen.value = true
+    },
+    onSearchInput: (query) => {
+      searchQuery.value = query
+    },
+    onSearchClose: () => {
+      searchOpen.value = false
+      searchQuery.value = ''
+    },
+  })
+})
 
 const accountsStore = useAccountsStore()
 const transactionsStore = useTransactionsStore()
@@ -35,6 +71,15 @@ const accounts = computed(() =>
 
 const total = computed(() => accounts.value.reduce((sum, a) => sum + a.balance, 0))
 
+const visibleAccounts = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase()
+  if (!query) return accounts.value
+  return accounts.value.filter(
+    (account) =>
+      account.name.toLowerCase().includes(query) || account.typeLabel.toLowerCase().includes(query),
+  )
+})
+
 function formatAmount(cents) {
   const sign = cents < 0 ? '-' : ''
   return `${sign}$${(Math.abs(cents) / 100).toFixed(2)}`
@@ -50,8 +95,8 @@ function formatAmount(cents) {
       <span class="total-amount" :class="{ negative: total < 0 }">{{ formatAmount(total) }}</span>
     </section>
 
-    <div v-if="accounts.length" class="accounts-card">
-      <div v-for="account in accounts" :key="account.id" class="account-row">
+    <div v-if="visibleAccounts.length" class="accounts-card">
+      <div v-for="account in visibleAccounts" :key="account.id" class="account-row">
         <div class="account-main">
           <span class="account-name">{{ account.name }}</span>
           <span class="account-type">{{ account.typeLabel }}</span>
@@ -65,6 +110,7 @@ function formatAmount(cents) {
       </div>
     </div>
 
+    <p v-else-if="accounts.length" class="empty">No accounts match your search.</p>
     <p v-else class="empty">No accounts yet. Tap + to add one.</p>
   </main>
 </template>
