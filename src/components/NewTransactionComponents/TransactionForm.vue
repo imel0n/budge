@@ -4,6 +4,8 @@ import SelectionList from '../SelectionList.vue'
 
 const { form, types, accounts, categories, payees, repeats, push } = inject('newTransaction')
 
+const notesPreview = computed(() => form.notes || 'Add a note')
+
 function onAmountInput(e) {
   let value = e.target.value.replace(/[^\d.]/g, '')
   const [whole, ...rest] = value.split('.')
@@ -132,6 +134,18 @@ watch(
         @navigate="push('location')"
       />
     </div>
+
+    <h2 class="section-title">Notes</h2>
+    <div class="field-card notes-card">
+      <button
+        type="button"
+        class="notes-display"
+        :class="{ placeholder: !form.notes }"
+        @click="push('note')"
+      >
+        {{ notesPreview }}
+      </button>
+    </div>
   </div>
 </template>
 
@@ -237,5 +251,27 @@ watch(
   background-color: var(--surface-1);
   border-radius: 25px;
   padding: 0 1.25rem;
+}
+
+.notes-card {
+  padding: 0.85rem 1.25rem;
+}
+
+.notes-display {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: 1.1rem;
+  text-align: left;
+  outline: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.notes-display.placeholder {
+  color: rgba(255, 255, 255, 0.4);
 }
 </style>

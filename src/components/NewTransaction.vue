@@ -11,6 +11,7 @@ import NewAccount from './NewTransactionComponents/NewAccount.vue'
 import NewCategory from './NewTransactionComponents/NewCategory.vue'
 import NewPayee from './NewTransactionComponents/NewPayee.vue'
 import NewLocation from './NewTransactionComponents/NewLocation.vue'
+import CreateNote from './NewTransactionComponents/CreateNote.vue'
 import { useCategoriesStore } from '../stores/categories'
 import { useTransactionsStore } from '../stores/transactions'
 import { useLocationsStore } from '../stores/locations'
@@ -42,6 +43,7 @@ const form = reactive({
   repeat: 'Never',
   location: true,
   selectedLocation: '',
+  notes: '',
 })
 
 const types = [
@@ -118,6 +120,7 @@ const views = {
   repeat: SelectRepeat,
   payee: SelectPayee,
   location: SelectLocation,
+  note: CreateNote,
   newAccount: NewAccount,
   newCategory: NewCategory,
   newPayee: NewPayee,
@@ -301,6 +304,7 @@ const titles = {
   repeat: 'Select Repeat',
   payee: 'Select Payee',
   location: 'Select Location',
+  note: 'Note',
   newAccount: 'New Account',
   newCategory: 'New Category',
   newPayee: 'New Payee',
@@ -351,6 +355,7 @@ function populate(t) {
     repeat: t.repeat,
     location: Boolean(t.location),
     selectedLocation: t.selectedLocation ?? '',
+    notes: t.notes ?? '',
   })
 }
 
@@ -366,6 +371,7 @@ function reset() {
     repeat: 'Never',
     location: true,
     selectedLocation: '',
+    notes: '',
   })
   stack.value = ['root']
   direction.value = 'forward'

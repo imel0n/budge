@@ -33,7 +33,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
     { deep: true },
   )
 
-  function addTransaction({ type, amount, account, category, payee, date, time, repeat, location, selectedLocation }) {
+  function addTransaction({ type, amount, account, category, payee, date, time, repeat, location, selectedLocation, notes }) {
     const transaction = {
       id: uuid(),
       type,
@@ -45,13 +45,14 @@ export const useTransactionsStore = defineStore('transactions', () => {
       repeat,
       location,
       selectedLocation: location ? selectedLocation : null,
+      notes,
       createdAt: new Date().toISOString(),
     }
     items.push(transaction)
     return transaction
   }
 
-  function updateTransaction(id, { type, amount, account, category, payee, date, time, repeat, location, selectedLocation }) {
+  function updateTransaction(id, { type, amount, account, category, payee, date, time, repeat, location, selectedLocation, notes }) {
     const transaction = items.find((t) => t.id === id)
     if (!transaction) return null
     Object.assign(transaction, {
@@ -64,6 +65,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
       repeat,
       location,
       selectedLocation: location ? selectedLocation : null,
+      notes,
     })
     return transaction
   }
