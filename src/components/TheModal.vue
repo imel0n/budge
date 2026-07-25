@@ -50,6 +50,11 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  // How dark the backdrop gets at rest, from 0 (invisible) to 1 (opaque black).
+  backdropOpacity: {
+    type: Number,
+    default: 1,
+  },
 })
 
 // `button-click` re-emits clicks on the caller's right buttons ({ side, id }).
@@ -115,7 +120,7 @@ const sheetHeight = ref(0)
 const backdropStyle = computed(() => {
   if (!dragY.value || !sheetHeight.value) return null
   const progress = Math.min(dragY.value / sheetHeight.value, 1)
-  return { backgroundColor: `rgba(0, 0, 0, ${1 - progress})` }
+  return { backgroundColor: `rgba(0, 0, 0, ${(1 - progress) * props.backdropOpacity})` }
 })
 
 let startY = 0
@@ -239,7 +244,13 @@ defineExpose({ getScrollTop, setScrollTop })
 <template>
   <Teleport to="body">
     <Transition name="sheet" :duration="{ enter: 600, leave: 500 }">
-      <div v-if="open" class="modal-backdrop" :class="{ dragging }" :style="backdropStyle" @click="close">
+      <div
+        v-if="open"
+        class="modal-backdrop"
+        :class="{ dragging }"
+        :style="backdropStyle ?? { '--backdrop-opacity': backdropOpacity }"
+        @click="close"
+      >
         <div
           ref="panel"
           class="modal-panel"
@@ -286,7 +297,7 @@ defineExpose({ getScrollTop, setScrollTop })
   z-index: 100;
   display: flex;
   align-items: flex-end;
-  background-color: #000;
+  background-color: rgba(0, 0, 0, var(--backdrop-opacity, 1));
   /* Ease the tint back alongside the panel's spring-back / slide-out. */
   transition: background-color 0.4s cubic-bezier(0.32, 0.72, 0, 1);
 }

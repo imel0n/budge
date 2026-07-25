@@ -1,13 +1,49 @@
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, inject, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePageTitle } from '../composables/usePageTitle'
 import { useTransactionsStore } from '../stores/transactions'
 import { useCategoriesStore } from '../stores/categories'
+import SelectTransactionPeriod from '../components/SelectTransactionPeriod.vue'
 
 const { titleRef, collapsed } = usePageTitle('Transactions')
 
 const router = useRouter()
+
+const setHeaderButtons = inject('setHeaderButtons')
+
+const periodOpen = ref(false)
+const period = ref('month')
+
+function weekNumber(date) {
+  const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const dayNumber = (target.getUTCDay() + 6) % 7
+  target.setUTCDate(target.getUTCDate() - dayNumber + 3)
+  const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4))
+  const firstDayNumber = (firstThursday.getUTCDay() + 6) % 7
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNumber + 3)
+  return 1 + Math.round((target - firstThursday) / (7 * 24 * 60 * 60 * 1000))
+}
+
+const periodLabel = computed(() => {
+  const now = new Date()
+  if (period.value === 'week') return `Week ${weekNumber(now)}`
+  if (period.value === 'year') return `Year ${now.getFullYear()}`
+  return `${now.toLocaleDateString(undefined, { month: 'long' })} ${now.getFullYear()}`
+})
+
+watch(
+  periodLabel,
+  (label) => {
+    setHeaderButtons({
+      left: [{ id: 'period', label }],
+      onClick: ({ id }) => {
+        if (id === 'period') periodOpen.value = true
+      },
+    })
+  },
+  { immediate: true },
+)
 
 function viewTransaction(transaction) {
   router.replace({ name: 'transaction', params: { id: transaction.id } })
@@ -321,6 +357,8 @@ const groups = computed(() => {
         </span>
       </div>
     </section>
+
+    <SelectTransactionPeriod v-model:open="periodOpen" v-model="period" />
   </main>
 </template>
 
