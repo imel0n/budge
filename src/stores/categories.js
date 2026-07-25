@@ -6,6 +6,8 @@ import shoppingBag from '../assets/icons/categories/shopping-bag.png'
 import moneyBag from '../assets/icons/categories/money-bag.png'
 import giftBox from '../assets/icons/categories/gift-box.png'
 import twoArrows from '../assets/icons/categories/two-arrows.png'
+import groceryStore from '../assets/icons/categories/grocery-store.png'
+import ticket from '../assets/icons/categories/ticket.png'
 
 const STORAGE_KEY = 'budge.categories'
 
@@ -20,9 +22,11 @@ function uuid() {
 
 const defaults = {
   expense: [
-    { id: 'expense-1', name: 'Food', icon: restaurant },
+    { id: 'expense-1', name: 'Eating Out', icon: restaurant },
     { id: 'expense-2', name: 'Transport', icon: car },
     { id: 'expense-3', name: 'Shopping', icon: shoppingBag },
+    { id: 'expense-4', name: 'Groceries', icon: groceryStore },
+    { id: 'expense-5', name: 'Entertainment', icon: ticket },
   ],
   income: [
     { id: 'income-1', name: 'Salary', icon: moneyBag },
