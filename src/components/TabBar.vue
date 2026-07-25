@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, nextTick, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import creditCard from '../assets/icons/credit-card.png'
 import creditCardActive from '../assets/icons/credit-card-active.png'
@@ -10,11 +10,36 @@ import wallet from '../assets/icons/wallet.png'
 import walletActive from '../assets/icons/wallet-active.png'
 
 const route = useRoute()
+const router = useRouter()
 
 const transactionsLink = ref(null)
 const accountsLink = ref(null)
 const budgetsLink = ref(null)
 const indicatorStyle = ref({})
+
+// The tab the indicator is currently sitting over during a press. Set on
+// pointerdown and updated on pointermove so a drag across tabs relocates the
+// indicator live; navigation on release goes wherever it ended up, not
+// necessarily where the finger first touched down.
+const pendingPath = ref(null)
+
+function tabLinks() {
+  return [
+    { path: '/transactions', el: transactionsLink.value?.$el },
+    { path: '/accounts', el: accountsLink.value?.$el },
+    { path: '/budgets', el: budgetsLink.value?.$el },
+  ]
+}
+
+// Hit-test by screen position rather than event.target: touch pointers get
+// implicit capture to the pointerdown element, so event.target on a
+// pointermove would keep reporting the original tab even as the finger
+// slides over another one.
+function tabAtPoint(clientX, clientY) {
+  const anchor = document.elementFromPoint(clientX, clientY)?.closest('a')
+  if (!anchor) return null
+  return tabLinks().find((link) => link.el === anchor) ?? null
+}
 
 // Tap-to-expand for the whole bar, mirroring HeaderButton: swell up while a
 // finger is down, then a bouncy contract on release. We track the phase as a
@@ -48,17 +73,44 @@ function onPointerDown(event) {
 
   // Slide the indicator to the pressed link right away rather than waiting for
   // the route to change on release. The spring transition then covers the gap.
-  const link = event.target.closest('a')
-  if (link) moveIndicator(link)
+  const hit = tabAtPoint(event.clientX, event.clientY)
+  if (hit) {
+    pendingPath.value = hit.path
+    moveIndicator(hit.el)
+  }
+}
+
+function onPointerMove(event) {
+  if (phase.value !== 'pressing') return
+  const hit = tabAtPoint(event.clientX, event.clientY)
+  if (hit && hit.path !== pendingPath.value) {
+    pendingPath.value = hit.path
+    moveIndicator(hit.el)
+  }
 }
 
 function onRelease() {
   // Only bounce back if we were actually pressed (ignore stray leave/up events).
   if (phase.value !== 'pressing') return
   releaseWanted.value = true
+  // Navigate to wherever the indicator ended up, which may differ from the
+  // tab originally pressed if the finger dragged across the bar.
+  if (pendingPath.value && pendingPath.value !== route.path) {
+    router.replace(pendingPath.value)
+  }
   // If the swell has already finished, start the bounce now; otherwise wait for
   // press-in to complete (handled in onAnimationEnd).
   if (pressInDone.value) phase.value = 'releasing'
+}
+
+// The indicator drag already decides where to navigate; suppress the
+// RouterLink's own click-triggered navigation so it doesn't fire a second,
+// possibly stale, navigation to wherever the finger first went down. Keyboard
+// activation (Enter/Space) dispatches a click with no pointer event behind
+// it — detail is 0 — so let that go through natively.
+function onClick(event) {
+  if (event.detail === 0) return
+  event.preventDefault()
 }
 
 function onAnimationEnd(event) {
@@ -113,10 +165,12 @@ watch(
     :class="phase"
     :style="{ '--glow-x': glowX, '--glow-y': glowY }"
     @pointerdown="onPointerDown"
+    @pointermove="onPointerMove"
     @pointerup="onRelease"
     @pointercancel="onRelease"
     @pointerleave="onRelease"
     @animationend="onAnimationEnd"
+    @click="onClick"
   >
     <span class="glow-clip" aria-hidden="true">
       <span v-if="glowKey" :key="glowKey" class="glow" />
