@@ -8,6 +8,8 @@ import bank from '../assets/icons/bank.png'
 import bankActive from '../assets/icons/bank-active.png'
 import wallet from '../assets/icons/wallet.png'
 import walletActive from '../assets/icons/wallet-active.png'
+import settings from '../assets/icons/settings.png'
+import settingsActive from '../assets/icons/settings-active.png'
 
 const route = useRoute()
 const router = useRouter()
@@ -15,6 +17,7 @@ const router = useRouter()
 const transactionsLink = ref(null)
 const accountsLink = ref(null)
 const budgetsLink = ref(null)
+const settingsLink = ref(null)
 const indicatorStyle = ref({})
 
 // The tab the indicator is currently sitting over during a press. Set on
@@ -28,6 +31,7 @@ function tabLinks() {
     { path: '/transactions', el: transactionsLink.value?.$el },
     { path: '/accounts', el: accountsLink.value?.$el },
     { path: '/budgets', el: budgetsLink.value?.$el },
+    { path: '/settings', el: settingsLink.value?.$el },
   ]
 }
 
@@ -148,6 +152,7 @@ function updateIndicator() {
     '/transactions': transactionsLink.value,
     '/accounts': accountsLink.value,
     '/budgets': budgetsLink.value,
+    '/settings': settingsLink.value,
   }
   moveIndicator(links[route.path]?.$el)
 }
@@ -236,6 +241,25 @@ watch(
         />
       </span>
       <span class="label" data-text="Budgets">Budgets</span>
+    </RouterLink>
+    <RouterLink ref="settingsLink" to="/settings" replace draggable="false">
+      <span class="icon-stack">
+        <img
+          class="icon-base"
+          :class="{ hidden: isActive('/settings') }"
+          :src="settings"
+          alt=""
+          aria-hidden="true"
+        />
+        <img
+          class="icon-active"
+          :class="{ hidden: !isActive('/settings') }"
+          :src="settingsActive"
+          alt=""
+          aria-hidden="true"
+        />
+      </span>
+      <span class="label" data-text="Settings">Settings</span>
     </RouterLink>
   </nav>
 </template>
