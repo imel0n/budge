@@ -4,8 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import HeaderBar from '../components/HeaderBar.vue'
 import HeaderButton from '../components/HeaderButton.vue'
 import TabBar from '../components/TabBar.vue'
-import NewTransaction from '../components/NewTransaction.vue'
-import NewAccount from '../components/NewAccount.vue'
+import NewTransactionModal from '../components/NewTransactionComponents/NewTransactionModal.vue'
+import CreateAccountModal from '../components/NewAccountComponents/CreateAccountModal.vue'
 import TheTransactions from '../pages/TheTransactions.vue'
 
 // Raw SVG for the "+" glyph. It carries no size or fill of its own — HeaderButton
@@ -149,7 +149,7 @@ function onPageEnter() {
 }
 
 // iOS-style edge-swipe back on the transaction page, mirroring the gesture on
-// NewTransaction's child pages. While dragging, the transactions list is
+// NewTransactionModal's child pages. While dragging, the transactions list is
 // rendered underneath (parallax-offset and dimmed) and the page tracks the
 // finger; release either settles into a pop or springs back. The eventual pop
 // navigates with no Transition ('none') since the drag already animated it.
@@ -370,8 +370,8 @@ onMounted(() => {
   <TabBar v-show="!chromeHidden" />
 
   <!-- The sheets driven by the "+" action. -->
-  <NewTransaction v-model:open="newTransactionOpen" />
-  <NewAccount v-model:open="newAccountOpen" />
+  <NewTransactionModal v-model:open="newTransactionOpen" />
+  <CreateAccountModal v-model:open="newAccountOpen" />
 </template>
 
 <style scoped>

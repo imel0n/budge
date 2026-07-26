@@ -5,7 +5,7 @@ import { useTransactionsStore } from '../stores/transactions'
 import { useCategoriesStore } from '../stores/categories'
 import { useAccountsStore } from '../stores/accounts'
 import SelectionList from '../components/SelectionList.vue'
-import NewTransaction from '../components/NewTransaction.vue'
+import NewTransactionModal from '../components/NewTransactionComponents/NewTransactionModal.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -111,7 +111,7 @@ const accountText = computed(() => {
       <SelectionList label="Location" type="info" :model-value="locationText" />
     </div>
 
-    <NewTransaction v-model:open="editOpen" :transaction="transaction" />
+    <NewTransactionModal v-model:open="editOpen" :transaction="transaction" />
   </main>
 </template>
 

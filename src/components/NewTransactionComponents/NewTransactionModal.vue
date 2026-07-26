@@ -1,22 +1,22 @@
 <script setup>
 import { computed, nextTick, provide, reactive, ref, watch } from 'vue'
-import TheModal from './TheModal.vue'
-import TransactionForm from './NewTransactionComponents/TransactionForm.vue'
-import SelectAccount from './NewTransactionComponents/SelectAccount.vue'
-import SelectCategory from './NewTransactionComponents/SelectCategory.vue'
-import SelectRepeat from './NewTransactionComponents/SelectRepeat.vue'
-import SelectPayee from './NewTransactionComponents/SelectPayee.vue'
-import SelectLocation from './NewTransactionComponents/SelectLocation.vue'
-import NewAccount from './NewTransactionComponents/NewAccount.vue'
-import NewCategory from './NewTransactionComponents/NewCategory.vue'
-import NewPayee from './NewTransactionComponents/NewPayee.vue'
-import NewLocation from './NewTransactionComponents/NewLocation.vue'
-import CreateNote from './NewTransactionComponents/CreateNote.vue'
-import { useAccountsStore } from '../stores/accounts'
-import { useCategoriesStore } from '../stores/categories'
-import { useTransactionsStore } from '../stores/transactions'
-import { useLocationsStore } from '../stores/locations'
-import { getCurrentPosition, reverseGeocode } from '../lib/geocode'
+import TheModal from '../TheModal.vue'
+import TransactionForm from './TransactionForm.vue'
+import SelectAccount from './SelectAccount.vue'
+import SelectCategory from './SelectCategory.vue'
+import SelectRepeat from './SelectRepeat.vue'
+import SelectPayee from './SelectPayee.vue'
+import SelectLocation from './SelectLocation.vue'
+import NewAccount from './NewAccount.vue'
+import NewCategory from './NewCategory.vue'
+import NewPayee from './NewPayee.vue'
+import NewLocation from './NewLocation.vue'
+import CreateNote from './CreateNote.vue'
+import { useAccountsStore } from '../../stores/accounts'
+import { useCategoriesStore } from '../../stores/categories'
+import { useTransactionsStore } from '../../stores/transactions'
+import { useLocationsStore } from '../../stores/locations'
+import { getCurrentPosition, reverseGeocode } from '../../lib/geocode'
 
 const props = defineProps({
   open: {
@@ -405,6 +405,7 @@ watch(
     if (isOpen) {
       if (isEdit.value) populate(props.transaction)
       else {
+        form.account = accountsStore.defaultAccount?.id ?? ''
         setNow()
         autoLocate()
       }

@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import TheModal from './TheModal.vue'
+import TheModal from '../TheModal.vue'
 import AccountForm from './AccountForm.vue'
 
 // The standalone "New Account" sheet, opened by the layout's "+" action while

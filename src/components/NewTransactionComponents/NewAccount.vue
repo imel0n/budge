@@ -1,6 +1,6 @@
 <script setup>
 import { inject, ref } from 'vue'
-import AccountForm from '../AccountForm.vue'
+import AccountForm from '../NewAccountComponents/AccountForm.vue'
 
 const { form } = inject('newTransaction')
 

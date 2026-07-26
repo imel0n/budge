@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { reactive, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import { uuid } from '../lib/uuid'
 
 const STORAGE_KEY = 'budge.accounts'
@@ -37,22 +37,35 @@ export const useAccountsStore = defineStore('accounts', () => {
     { deep: true },
   )
 
-  function addAccount({ name, type, currency }) {
+  const defaultAccount = computed(() => items.find((a) => a.isDefault) ?? null)
+
+  // Only one account can be the default, so setting one clears the rest.
+  function setDefaultAccount(id) {
+    items.forEach((a) => {
+      a.isDefault = a.id === id
+    })
+  }
+
+  function addAccount({ name, type, currency, isDefault }) {
     const account = {
       id: uuid(),
       name,
       type: type ?? 'checking',
       currency: currency ?? DEFAULT_CURRENCY,
+      isDefault: false,
       createdAt: new Date().toISOString(),
     }
     items.push(account)
+    if (isDefault) setDefaultAccount(account.id)
     return account
   }
 
-  function updateAccount(id, { name, type, currency }) {
+  function updateAccount(id, { name, type, currency, isDefault }) {
     const account = items.find((a) => a.id === id)
     if (!account) return null
     Object.assign(account, { name, type, currency: currency ?? account.currency })
+    if (isDefault === true) setDefaultAccount(id)
+    else if (isDefault === false) account.isDefault = false
     return account
   }
 
@@ -63,5 +76,5 @@ export const useAccountsStore = defineStore('accounts', () => {
     if (index !== -1) items.splice(index, 1)
   }
 
-  return { items, addAccount, updateAccount, deleteAccount }
+  return { items, defaultAccount, addAccount, updateAccount, setDefaultAccount, deleteAccount }
 })
